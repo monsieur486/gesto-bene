@@ -8,7 +8,7 @@ GestoBene_Config = {
   -- Les porteurs de tissu vivent sur leur mana : Sagesse.
   -- Tous les autres profitent davantage des Rois.
   -- Le paladin, c'est toi : sa ligne bascule avec le bouton au-dessus de ton
-  -- carré, entre « donjon » et « solo » (voir « bascule » plus bas).
+  -- carré, comme celle de toute classe listée dans « bascules » plus bas.
   parClasse = {
     WARRIOR     = "Rois",
     PALADIN     = "Sagesse",
@@ -37,11 +37,20 @@ GestoBene_Config = {
   -- il repart toujours de cette valeur.
   verrouille = true,
 
-  -- Le bouton au-dessus de ton carré bascule la bénédiction d'une classe
-  -- entre deux modes. Mets « classe = nil » pour supprimer le bouton.
-  bascule = {
-    classe = "PALADIN",
-    donjon = "Sagesse",
-    solo   = "Puissance",
+  -- Bascules par classe. Une classe listée ici gagne un bouton au-dessus de
+  -- son carré, qui alterne sa bénédiction entre les deux valeurs. Une classe
+  -- absente n'a pas de bouton et sa ligne de parClasse ne bouge jamais.
+  --
+  -- La règle reste par classe : s'il y a deux guerriers dans le groupe,
+  -- basculer au-dessus de l'un change les deux.
+  bascules = {
+    PALADIN     = { "Sagesse", "Puissance" },
+    WARRIOR     = { "Rois", "Puissance" },
+    HUNTER      = { "Rois", "Puissance" },
+    ROGUE       = { "Rois", "Puissance" },
+    DEATHKNIGHT = { "Rois", "Puissance" },
+    SHAMAN      = { "Rois", "Puissance" },
+    DRUID       = { "Rois", "Puissance" },
+    -- Mage, prêtre, démoniste : aucune bascule, ils ne veulent que du mana.
   },
 }

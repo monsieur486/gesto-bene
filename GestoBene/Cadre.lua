@@ -1,8 +1,9 @@
 -- Les cinq carrés : création, attributs sécurisés, couleurs.
 -- Aucune décision ici. Tout vient de GestoBene_Suivi et GestoBene_Sorts.
--- Deux boutons ordinaires s'y ajoutent : le cadenas (verrouille le cadre) et
--- la bascule (alterne la bénédiction du joueur entre deux modes). Ni l'un ni
--- l'autre ne lance de sort ; seuls les cinq carrés sont protégés.
+-- Des boutons ordinaires s'y ajoutent : le cadenas (verrouille le cadre) et,
+-- au-dessus de chaque carré dont la classe est basculable, une bascule qui
+-- alterne sa bénédiction entre deux valeurs. Aucun d'eux ne lance de sort ;
+-- seuls les cinq carrés sont protégés.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -24,10 +25,15 @@ local COULEURS = {
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
 
--- Le cadenas à gauche des carrés, et le bouton de bascule au-dessus du carré
--- du joueur. Boutons ordinaires : les créer, les montrer, les cacher ou les
--- cliquer en combat est licite, contrairement aux cinq carrés.
-local cadenas, boutonBascule = nil, nil
+-- Le cadenas à gauche des carrés, et un bouton de bascule par carré, tenu
+-- dans une table indexée par unité. Boutons ordinaires : les créer, les
+-- montrer, les cacher ou les cliquer en combat est licite, contrairement aux
+-- cinq carrés.
+local cadenas, boutonsBascule = nil, {}
+
+-- Déclarée ici pour que le clic d'un bouton (défini plus bas) puisse
+-- l'appeler ; définie plus loin, une fois Disposer et compagnie en place.
+local ActualiserBascules
 
 -- Ce qui a réellement été appliqué au dernier Reprogrammer() réussi : par
 -- unité, sa visibilité et les noms posés dans spell1/spell2. Sert à ne pas
@@ -158,19 +164,22 @@ local function CreerCadenas()
   return bouton
 end
 
--- Le bouton de bascule : alterne la bénédiction d'une classe entre deux
--- modes nommés DONJON et SOLO. N'existe que si la bascule est configurée et
--- vise une classe ; sinon Cadre.Construire ne l'appelle même pas.
+-- Un bouton de bascule par carré, créé avec lui, qu'il serve un jour ou
+-- jamais : la classe de l'occupant peut changer à chaque recomposition du
+-- groupe, alors qu'un carré, lui, ne change pas d'unité. Caché à la
+-- création ; c'est ActualiserBascules() qui décide, à chaque reprogrammation,
+-- s'il a sa place.
 --
 -- N'écrit jamais Config.lua : seule la table GestoBene_Config.parClasse en
 -- mémoire change. Un /reload repart donc de la valeur du fichier.
-local function CreerBoutonBascule(reglage)
+local function CreerBoutonBascule(unite, carre)
   local taille = GestoBene_Config.tailleCarre
-  local bouton = CreateFrame("Button", "GestoBeneBascule", parent)
+  local bouton = CreateFrame("Button", nil, parent)
   bouton:SetWidth(taille)
   bouton:SetHeight(14)
-  bouton:SetPoint("BOTTOM", carres.player, "TOP", 0, 2)
+  bouton:SetPoint("BOTTOM", carre, "TOP", 0, 2)
   bouton:RegisterForClicks("LeftButtonUp")
+  bouton:Hide()
 
   bouton.fond = bouton:CreateTexture(nil, "BACKGROUND")
   bouton.fond:SetAllPoints(bouton)
@@ -179,37 +188,79 @@ local function CreerBoutonBascule(reglage)
   bouton.texte = bouton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   bouton.texte:SetPoint("CENTER", bouton, "CENTER", 0, 0)
 
-  -- Mode initial déduit de la config actuelle. Si la valeur ne correspond ni
-  -- au mode donjon ni au mode solo, on affiche DONJON sans rien écrire.
-  local mode = "DONJON"
-  if GestoBene_Config.parClasse[reglage.classe] == reglage.solo then
-    mode = "SOLO"
-  end
-  bouton.mode = mode
-  bouton.texte:SetText(mode)
+  bouton.unite = unite
 
   bouton:SetScript("OnClick", function(self)
-    self.mode = (self.mode == "DONJON") and "SOLO" or "DONJON"
-    local valeur = (self.mode == "DONJON") and reglage.donjon or reglage.solo
-    GestoBene_Config.parClasse[reglage.classe] = valeur
+    local _, jeton = UnitClass(self.unite)
+    local reglage = jeton and GestoBene_Config.bascules[jeton]
+    if not reglage then return end
 
-    -- Reprogrammer gère déjà le verrou de combat en différant si besoin. Le
-    -- bouton, lui, affiche tout de suite le nouveau mode : le joueur a bien
-    -- changé d'intention, seule l'application au carré peut attendre.
+    local courante = GestoBene_Config.parClasse[jeton]
+    local nouvelle = reglage[1]
+    if courante == reglage[1] then nouvelle = reglage[2] end
+    GestoBene_Config.parClasse[jeton] = nouvelle
+
+    -- Reprogrammer gère déjà le verrou de combat en différant si besoin. Les
+    -- boutons, eux, affichent tout de suite le nouvel état : le joueur a
+    -- bien changé d'intention, seule l'application aux carrés peut attendre.
     Cadre.Reprogrammer()
-    self.texte:SetText(self.mode)
+    ActualiserBascules()
   end)
 
   bouton:SetScript("OnEnter", function(self)
+    local _, jeton = UnitClass(self.unite)
+    local reglage = jeton and GestoBene_Config.bascules[jeton]
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("Bascule de bénédiction")
-    GameTooltip:AddLine("Donjon : " .. tostring(reglage.donjon), 1, 1, 1)
-    GameTooltip:AddLine("Solo : " .. tostring(reglage.solo), 1, 1, 1)
+    if reglage then
+      GameTooltip:AddLine(reglage[1] .. " / " .. reglage[2], 1, 1, 1)
+      GameTooltip:AddLine("Change pour toute la classe", 0.8, 0.8, 0.8)
+    end
     GameTooltip:Show()
   end)
   bouton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   return bouton
+end
+
+-- Remet à jour la visibilité et le texte de tous les boutons de bascule.
+-- Appelée après chaque reprogrammation (composition du groupe susceptible
+-- d'avoir changé) et après chaque clic (règle par classe : deux carrés de
+-- même classe doivent afficher la même chose). Aucun attribut protégé n'est
+-- en jeu, donc rien ici ne se soucie du verrou de combat.
+--
+-- Le bouton affiche l'option vers laquelle il basculerait, pas la courante :
+-- le carré juste en dessous montre déjà celle-ci, et « PUISSANCE » déborde
+-- d'un carré de 48 pixels comme « MANQUE » l'a fait.
+function ActualiserBascules()
+  for _, unite in ipairs(GestoBene_Suivi.UNITES) do
+    local bouton = boutonsBascule[unite]
+    local carre = carres[unite]
+    if bouton and carre then
+      local autre = nil
+      if carre:IsShown() then
+        local _, jeton = UnitClass(unite)
+        local reglage = jeton and GestoBene_Config.bascules[jeton]
+        if reglage then
+          local courante = GestoBene_Config.parClasse[jeton]
+          if courante == reglage[1] then
+            autre = reglage[2]
+          elseif courante == reglage[2] then
+            autre = reglage[1]
+          end
+          -- Une troisième valeur écrite à la main dans parClasse n'est ni
+          -- l'une ni l'autre : on cache le bouton plutôt que de deviner.
+        end
+      end
+
+      if autre then
+        bouton.texte:SetText("→ " .. GestoBene_Sorts.Abreger(autre))
+        bouton:Show()
+      else
+        bouton:Hide()
+      end
+    end
+  end
 end
 
 -- Crée le cadre parent et les cinq carrés. À n'appeler qu'une fois, hors
@@ -249,15 +300,12 @@ function Cadre.Construire()
   })
 
   for index, unite in ipairs(GestoBene_Suivi.UNITES) do
-    carres[unite] = CreerCarre(unite, index)
+    local carre = CreerCarre(unite, index)
+    carres[unite] = carre
+    boutonsBascule[unite] = CreerBoutonBascule(unite, carre)
   end
 
   cadenas = CreerCadenas()
-
-  local reglage = GestoBene_Config.bascule
-  if reglage and reglage.classe then
-    boutonBascule = CreerBoutonBascule(reglage)
-  end
 
   ActualiserVerrou()
 
@@ -360,6 +408,7 @@ function Cadre.Reprogrammer()
 
   Disposer(membres)
   Cadre.Peindre()
+  ActualiserBascules()
 end
 
 function Cadre.ViderFile()
