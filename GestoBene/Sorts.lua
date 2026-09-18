@@ -19,6 +19,12 @@ local ABREVIATIONS = {
   Rois = "ROI", Puissance = "PUI", Sagesse = "SAG", Sanctuaire = "SAN",
 }
 
+-- L'ordre du cycle, fixé une fois pour toutes. Parcourir Sorts.table avec
+-- pairs() rendrait l'ordre imprévisible et il pourrait changer d'une session
+-- à l'autre : un bouton dont l'enchaînement bouge est un bouton qu'on
+-- n'apprend jamais.
+Sorts.ORDRE = { "Rois", "Puissance", "Sagesse", "Sanctuaire" }
+
 -- Cache rempli par Resoudre(), relu par Etat() et NomAUtiliser().
 local etats = {}
 local parSpellId = {}
@@ -77,6 +83,40 @@ function Sorts.NomAUtiliser(cle, veutSuperieure)
   end
   if etat.normaleApprise then return etat.nomNormale end
   return nil
+end
+
+-- Les bénédictions que le personnage sait réellement lancer, dans l'ordre du
+-- cycle (Sorts.ORDRE). On se fonde sur la normale : c'est elle que pose le
+-- clic gauche, et le clic droit s'y replie déjà quand la supérieure manque.
+function Sorts.Lancables()
+  local lancables = {}
+  for _, cle in ipairs(Sorts.ORDRE) do
+    local etat = etats[cle]
+    if etat and etat.normaleApprise then
+      lancables[#lancables + 1] = cle
+    end
+  end
+  return lancables
+end
+
+-- La bénédiction lançable qui suit « cle » dans le cycle, en bouclant après
+-- la dernière. Si « cle » n'est pas lançable (par exemple une bénédiction que
+-- la configuration attend mais que le personnage n'a pas apprise), on repart
+-- de la première. S'il n'y a nulle part où aller — aucune ou une seule
+-- bénédiction lançable — rend nil.
+function Sorts.Suivante(cle)
+  local lancables = Sorts.Lancables()
+  if #lancables < 2 then return nil end
+
+  for index, courante in ipairs(lancables) do
+    if courante == cle then
+      local suivant = index + 1
+      if suivant > #lancables then suivant = 1 end
+      return lancables[suivant]
+    end
+  end
+
+  return lancables[1]
 end
 
 -- Vérifie GestoBene_Config.parClasse et ramène les valeurs fautives

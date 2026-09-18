@@ -7,10 +7,10 @@ GestoBene_Config = {
   -- Valeurs admises : "Rois", "Puissance", "Sagesse", "Sanctuaire"
   -- Les porteurs de tissu vivent sur leur mana : Sagesse.
   -- Tous les autres profitent davantage des Rois.
-  -- Le paladin, c'est toi : ta ligne sert de défaut au bouton au-dessus de
-  -- ton carré, comme celle de tout joueur dont la classe est listée dans
-  -- « bascules » plus bas. Le bouton surcharge le joueur nommément, en
-  -- mémoire seulement (GestoBene_Suivi) : cette table-ci ne bouge jamais.
+  -- Le bouton au-dessus de chaque carré fait défiler les bénédictions que ce
+  -- joueur sait lancer et surcharge son nom, en mémoire seulement
+  -- (GestoBene_Suivi) : cette table-ci ne bouge jamais, elle ne sert que de
+  -- point de départ.
   parClasse = {
     WARRIOR     = "Rois",
     PALADIN     = "Sagesse",
@@ -38,24 +38,4 @@ GestoBene_Config = {
   -- libère d'un clic. L'état ne survit pas au /reload : sans SavedVariables,
   -- il repart toujours de cette valeur.
   verrouille = true,
-
-  -- Bascules par classe. Une classe listée ici gagne un bouton au-dessus de
-  -- son carré, qui alterne la bénédiction du joueur entre les deux valeurs.
-  -- Une classe absente n'a pas de bouton et sa ligne de parClasse ne bouge
-  -- jamais.
-  --
-  -- La règle est par joueur, pas par classe : un guerrier Fureur et un
-  -- guerrier Protection peuvent vouloir chacun autre chose, donc basculer
-  -- au-dessus de l'un ne change que lui. La surcharge vit dans
-  -- GestoBene_Suivi, jamais ici.
-  bascules = {
-    PALADIN     = { "Sagesse", "Puissance" },
-    WARRIOR     = { "Rois", "Puissance" },
-    HUNTER      = { "Rois", "Puissance" },
-    ROGUE       = { "Rois", "Puissance" },
-    DEATHKNIGHT = { "Rois", "Puissance" },
-    SHAMAN      = { "Rois", "Puissance" },
-    DRUID       = { "Rois", "Puissance" },
-    -- Mage, prêtre, démoniste : aucune bascule, ils ne veulent que du mana.
-  },
 }

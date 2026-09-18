@@ -256,6 +256,57 @@ Test("les abreviations font trois lettres", function()
   FauxAPI.Reinitialiser()
 end)
 
+Test("Lancables rend les benedictions apprises dans l ordre du cycle", function()
+  ChargerSorts(MondeKahalie55())
+  local lancables = GestoBene_Sorts.Lancables()
+  AssertEgal(#lancables, 3, "trois benedictions apprises, le sanctuaire absent")
+  AssertEgal(lancables[1], "Rois", "1")
+  AssertEgal(lancables[2], "Puissance", "2")
+  AssertEgal(lancables[3], "Sagesse", "3")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Le cas qui donne son sens au cycle : Kahalie passe en Protection et
+-- apprend le Sanctuaire. Resoudre() est deja rappele par SPELLS_CHANGED et
+-- ACTIVE_TALENT_GROUP_CHANGED ; ici on verifie juste que Lancables() en tient
+-- compte une fois rappelee.
+Test("Lancables suit un changement d apprentissage apres Resoudre", function()
+  local monde = MondeKahalie55()
+  monde.sortsConnus[20911] = true
+  ChargerSorts(monde)
+  local lancables = GestoBene_Sorts.Lancables()
+  AssertEgal(#lancables, 4, "les quatre benedictions apprises")
+  AssertEgal(lancables[4], "Sanctuaire", "le sanctuaire entre a sa place dans l ordre")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("Suivante avance dans le cycle", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.Suivante("Rois"), "Puissance", "Rois vers Puissance")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("Suivante boucle depuis la derniere vers la premiere", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.Suivante("Sagesse"), "Rois", "retour au debut du cycle")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("Suivante sur une cle non apprise rend la premiere lancable", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.Suivante("Sanctuaire"), "Rois", "Sanctuaire non appris a 55")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("Suivante rend nil quand une seule benediction est apprise", function()
+  local monde = MondeKahalie55()
+  monde.sortsConnus = { [19740] = true }  -- seule la Puissance normale est apprise
+  ChargerSorts(monde)
+  AssertEgal(#GestoBene_Sorts.Lancables(), 1, "une seule benediction lancable")
+  AssertNil(GestoBene_Sorts.Suivante("Puissance"), "nulle part ou aller")
+  FauxAPI.Reinitialiser()
+end)
+
 local function ChargerSuivi(monde)
   FauxAPI.Installer(monde)
   dofile("../GestoBene/Config.lua")

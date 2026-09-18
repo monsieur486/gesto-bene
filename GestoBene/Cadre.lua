@@ -1,9 +1,9 @@
 -- Les cinq carrés : création, attributs sécurisés, couleurs.
 -- Aucune décision ici. Tout vient de GestoBene_Suivi et GestoBene_Sorts.
 -- Des boutons ordinaires s'y ajoutent : le cadenas (verrouille le cadre) et,
--- au-dessus de chaque carré dont la classe est basculable, une bascule qui
--- alterne sa bénédiction entre deux valeurs. Aucun d'eux ne lance de sort ;
--- seuls les cinq carrés sont protégés.
+-- au-dessus de chaque carré, une bascule qui fait défiler les bénédictions
+-- que ce joueur sait lancer. Aucun d'eux ne lance de sort ; seuls les cinq
+-- carrés sont protégés.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -165,10 +165,11 @@ local function CreerCadenas()
 end
 
 -- Un bouton de bascule par carré, créé avec lui, qu'il serve un jour ou
--- jamais : la classe de l'occupant peut changer à chaque recomposition du
--- groupe, alors qu'un carré, lui, ne change pas d'unité. Caché à la
--- création ; c'est ActualiserBascules() qui décide, à chaque reprogrammation,
--- s'il a sa place.
+-- jamais : les bénédictions que sait lancer l'occupant peuvent changer à
+-- chaque montée de niveau ou changement de spécialisation, alors qu'un
+-- carré, lui, ne change pas d'unité. Caché à la création ; c'est
+-- ActualiserBascules() qui décide, à chaque reprogrammation, s'il a sa
+-- place.
 --
 -- Le clic pose une surcharge nominative dans GestoBene_Suivi, pas une valeur
 -- de classe : deux joueurs de même classe peuvent avoir des besoins
@@ -194,14 +195,23 @@ local function CreerBoutonBascule(unite, carre)
   bouton.unite = unite
 
   bouton:SetScript("OnClick", function(self)
-    local _, jeton = UnitClass(self.unite)
-    local reglage = jeton and GestoBene_Config.bascules[jeton]
-    if not reglage then return end
+    local nom = UnitName(self.unite)
+    if not nom then return end
 
     local effective = GestoBene_Suivi.Attendue(self.unite)
-    local nouvelle = reglage[1]
-    if effective == reglage[1] then nouvelle = reglage[2] end
-    GestoBene_Suivi.Surcharger(UnitName(self.unite), nouvelle)
+    local suivante = GestoBene_Sorts.Suivante(effective)
+    if not suivante then return end
+
+    -- Quand le cycle revient sur ce que parClasse donne à cette classe, on
+    -- retire la surcharge plutôt que d'en poser une identique : /gesto etat
+    -- montre ainsi qui est réellement dévié de la règle générale.
+    local _, jeton = UnitClass(self.unite)
+    local defaut = jeton and GestoBene_Config.parClasse[jeton]
+    if suivante == defaut then
+      GestoBene_Suivi.Surcharger(nom, nil)
+    else
+      GestoBene_Suivi.Surcharger(nom, suivante)
+    end
 
     -- Reprogrammer gère déjà le verrou de combat en différant si besoin. Les
     -- boutons, eux, affichent tout de suite le nouvel état : le joueur a
@@ -211,13 +221,14 @@ local function CreerBoutonBascule(unite, carre)
   end)
 
   bouton:SetScript("OnEnter", function(self)
-    local _, jeton = UnitClass(self.unite)
-    local reglage = jeton and GestoBene_Config.bascules[jeton]
+    local effective = GestoBene_Suivi.Attendue(self.unite)
+    local suivante = GestoBene_Sorts.Suivante(effective)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("Bascule de bénédiction")
-    if reglage then
-      GameTooltip:AddLine(reglage[1] .. " / " .. reglage[2], 1, 1, 1)
-      GameTooltip:AddLine("Ne s'applique qu'à ce joueur", 0.8, 0.8, 0.8)
+    if suivante then
+      local etat = GestoBene_Sorts.Etat(suivante)
+      GameTooltip:AddLine("→ " .. (etat and etat.nomNormale or suivante), 1, 1, 1)
+      GameTooltip:AddLine("Ne s'applique qu'à ce joueur, jusqu'au prochain rechargement", 0.8, 0.8, 0.8)
     end
     GameTooltip:Show()
   end)
@@ -229,40 +240,32 @@ end
 -- Remet à jour la visibilité et le texte de tous les boutons de bascule.
 -- Appelée après chaque reprogrammation (composition du groupe susceptible
 -- d'avoir changé) et après chaque clic (la composition n'a pas bougé, mais
--- un autre carré peut partager la classe qui vient de changer). Chaque
+-- un autre carré peut partager la bénédiction qui vient de changer). Chaque
 -- bouton se calcule sur la bénédiction effective de son propre joueur
 -- (Suivi.Attendue, qui tient compte d'une éventuelle surcharge) : deux
 -- carrés de même classe n'affichent plus forcément la même chose. Aucun
 -- attribut protégé n'est en jeu, donc rien ici ne se soucie du verrou de
 -- combat.
 --
--- Le bouton affiche l'option vers laquelle il basculerait, pas la courante :
--- le carré juste en dessous montre déjà celle-ci, et « PUISSANCE » déborde
--- d'un carré de 48 pixels comme « MANQUE » l'a fait.
+-- Un bouton est montré si son carré est visible et que Sorts.Suivante() rend
+-- quelque chose pour la bénédiction effective de ce joueur : un bouton qui
+-- ne mène nulle part est pire qu'un bouton absent. Il affiche l'option vers
+-- laquelle il basculerait, pas la courante : le carré juste en dessous
+-- montre déjà celle-ci, et « PUISSANCE » déborde d'un carré de 48 pixels
+-- comme « MANQUE » l'a fait.
 function ActualiserBascules()
   for _, unite in ipairs(GestoBene_Suivi.UNITES) do
     local bouton = boutonsBascule[unite]
     local carre = carres[unite]
     if bouton and carre then
-      local autre = nil
+      local suivante = nil
       if carre:IsShown() then
-        local _, jeton = UnitClass(unite)
-        local reglage = jeton and GestoBene_Config.bascules[jeton]
-        if reglage then
-          local effective = GestoBene_Suivi.Attendue(unite)
-          if effective == reglage[1] then
-            autre = reglage[2]
-          elseif effective == reglage[2] then
-            autre = reglage[1]
-          end
-          -- Une troisième valeur (surcharge ou parClasse écrits à la main)
-          -- n'est ni l'une ni l'autre : on cache le bouton plutôt que de
-          -- deviner.
-        end
+        local effective = GestoBene_Suivi.Attendue(unite)
+        suivante = GestoBene_Sorts.Suivante(effective)
       end
 
-      if autre then
-        bouton.texte:SetText("→ " .. GestoBene_Sorts.Abreger(autre))
+      if suivante then
+        bouton.texte:SetText("→ " .. GestoBene_Sorts.Abreger(suivante))
         bouton:Show()
       else
         bouton:Hide()
