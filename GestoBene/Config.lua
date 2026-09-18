@@ -7,7 +7,8 @@ GestoBene_Config = {
   -- Valeurs admises : "Rois", "Puissance", "Sagesse", "Sanctuaire"
   -- Les porteurs de tissu vivent sur leur mana : Sagesse.
   -- Tous les autres profitent davantage des Rois.
-  -- Le paladin, c'est toi.
+  -- Le paladin, c'est toi : sa ligne bascule avec le bouton au-dessus de ton
+  -- carré, entre « donjon » et « solo » (voir « bascule » plus bas).
   parClasse = {
     WARRIOR     = "Rois",
     PALADIN     = "Sagesse",
@@ -35,4 +36,12 @@ GestoBene_Config = {
   -- libère d'un clic. L'état ne survit pas au /reload : sans SavedVariables,
   -- il repart toujours de cette valeur.
   verrouille = true,
+
+  -- Le bouton au-dessus de ton carré bascule la bénédiction d'une classe
+  -- entre deux modes. Mets « classe = nil » pour supprimer le bouton.
+  bascule = {
+    classe = "PALADIN",
+    donjon = "Sagesse",
+    solo   = "Puissance",
+  },
 }

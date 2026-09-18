@@ -1,7 +1,8 @@
 -- Les cinq carrés : création, attributs sécurisés, couleurs.
 -- Aucune décision ici. Tout vient de GestoBene_Suivi et GestoBene_Sorts.
--- Le cadenas qui verrouille le cadre s'y ajoute : un bouton ordinaire, qui ne
--- lance aucun sort et ne porte donc aucun attribut sécurisé.
+-- Deux boutons ordinaires s'y ajoutent : le cadenas (verrouille le cadre) et
+-- la bascule (alterne la bénédiction du joueur entre deux modes). Ni l'un ni
+-- l'autre ne lance de sort ; seuls les cinq carrés sont protégés.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -23,9 +24,10 @@ local COULEURS = {
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
 
--- Le cadenas à gauche des carrés. Bouton ordinaire : le créer, le montrer,
--- le cacher ou le cliquer en combat est licite, contrairement aux carrés.
-local cadenas = nil
+-- Le cadenas à gauche des carrés, et le bouton de bascule au-dessus du carré
+-- du joueur. Boutons ordinaires : les créer, les montrer, les cacher ou les
+-- cliquer en combat est licite, contrairement aux cinq carrés.
+local cadenas, boutonBascule = nil, nil
 
 -- Ce qui a réellement été appliqué au dernier Reprogrammer() réussi : par
 -- unité, sa visibilité et les noms posés dans spell1/spell2. Sert à ne pas
@@ -156,6 +158,60 @@ local function CreerCadenas()
   return bouton
 end
 
+-- Le bouton de bascule : alterne la bénédiction d'une classe entre deux
+-- modes nommés DONJON et SOLO. N'existe que si la bascule est configurée et
+-- vise une classe ; sinon Cadre.Construire ne l'appelle même pas.
+--
+-- N'écrit jamais Config.lua : seule la table GestoBene_Config.parClasse en
+-- mémoire change. Un /reload repart donc de la valeur du fichier.
+local function CreerBoutonBascule(reglage)
+  local taille = GestoBene_Config.tailleCarre
+  local bouton = CreateFrame("Button", "GestoBeneBascule", parent)
+  bouton:SetWidth(taille)
+  bouton:SetHeight(14)
+  bouton:SetPoint("BOTTOM", carres.player, "TOP", 0, 2)
+  bouton:RegisterForClicks("LeftButtonUp")
+
+  bouton.fond = bouton:CreateTexture(nil, "BACKGROUND")
+  bouton.fond:SetAllPoints(bouton)
+  bouton.fond:SetTexture(0, 0, 0, 0.6)
+
+  bouton.texte = bouton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  bouton.texte:SetPoint("CENTER", bouton, "CENTER", 0, 0)
+
+  -- Mode initial déduit de la config actuelle. Si la valeur ne correspond ni
+  -- au mode donjon ni au mode solo, on affiche DONJON sans rien écrire.
+  local mode = "DONJON"
+  if GestoBene_Config.parClasse[reglage.classe] == reglage.solo then
+    mode = "SOLO"
+  end
+  bouton.mode = mode
+  bouton.texte:SetText(mode)
+
+  bouton:SetScript("OnClick", function(self)
+    self.mode = (self.mode == "DONJON") and "SOLO" or "DONJON"
+    local valeur = (self.mode == "DONJON") and reglage.donjon or reglage.solo
+    GestoBene_Config.parClasse[reglage.classe] = valeur
+
+    -- Reprogrammer gère déjà le verrou de combat en différant si besoin. Le
+    -- bouton, lui, affiche tout de suite le nouveau mode : le joueur a bien
+    -- changé d'intention, seule l'application au carré peut attendre.
+    Cadre.Reprogrammer()
+    self.texte:SetText(self.mode)
+  end)
+
+  bouton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Bascule de bénédiction")
+    GameTooltip:AddLine("Donjon : " .. tostring(reglage.donjon), 1, 1, 1)
+    GameTooltip:AddLine("Solo : " .. tostring(reglage.solo), 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  bouton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  return bouton
+end
+
 -- Crée le cadre parent et les cinq carrés. À n'appeler qu'une fois, hors
 -- combat : créer un bouton protégé pendant un combat est impossible.
 function Cadre.Construire()
@@ -197,6 +253,12 @@ function Cadre.Construire()
   end
 
   cadenas = CreerCadenas()
+
+  local reglage = GestoBene_Config.bascule
+  if reglage and reglage.classe then
+    boutonBascule = CreerBoutonBascule(reglage)
+  end
+
   ActualiserVerrou()
 
   Cadre.Reprogrammer()
