@@ -6,6 +6,11 @@ local Cadre = GestoBene_Cadre
 
 local ECART = 4
 
+-- Texte du carré quand la bénédiction manque. Court volontairement : un mot
+-- entier déborde d'un carré de 48 pixels, et le fond rouge qui pulse dit déjà
+-- de quoi il retourne.
+local TEXTE_ABSENTE = "X"
+
 local COULEURS = {
   posee    = { 0.10, 0.35, 0.10, 0.85 },
   bientot  = { 0.55, 0.35, 0.05, 0.90 },
@@ -177,7 +182,7 @@ function Cadre.PeindreUnite(unite)
   if etat.etat == "absente" then
     carre.fond:SetTexture(unpack(COULEURS.absente))
     carre.abreviation:SetText(etat.cle and GestoBene_Sorts.Abreger(etat.cle) or "?")
-    carre.temps:SetText("MANQUE")
+    carre.temps:SetText(TEXTE_ABSENTE)
   elseif etat.etat == "mauvaise" then
     carre.fond:SetTexture(unpack(COULEURS.mauvaise))
     carre.abreviation:SetText(GestoBene_Sorts.Abreger(etat.clePortee))
