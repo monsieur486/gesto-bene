@@ -58,7 +58,8 @@ SlashCmdList["GESTOBENE"] = function(argument)
   elseif argument == "etat" then
     ImprimerEtat()
   else
-    GestoBene_Cadre.Basculer()
+    local raison = GestoBene_Cadre.Basculer()
+    if raison then Dire(raison) end
   end
 end
 
