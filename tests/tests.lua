@@ -113,6 +113,19 @@ Test("Reinitialiser retire bien toutes les globales", function()
   AssertNil(GetItemCount, "GetItemCount retiree")
 end)
 
+-- Config.lua doit se charger seul, sans API WoW, et fournir les dix classes.
+Test("la config fournit les dix classes", function()
+  dofile("../GestoBene/Config.lua")
+  local attendues = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST",
+                      "DEATHKNIGHT", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+  for _, jeton in ipairs(attendues) do
+    AssertVrai(GestoBene_Config.parClasse[jeton], "classe " .. jeton)
+  end
+  AssertEgal(GestoBene_Config.seuilAlerte, 60, "seuil")
+  AssertEgal(GestoBene_Config.tailleCarre, 48, "taille")
+  AssertEgal(GestoBene_Config.ancrage.point, "CENTER", "ancrage")
+end)
+
 function LancerTests()
   for _, c in ipairs(cas) do
     local ok, err = pcall(c.fonction)

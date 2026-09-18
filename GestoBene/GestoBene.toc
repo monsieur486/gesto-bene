@@ -1,0 +1,11 @@
+## Interface: 30300
+## Title: GestoBene
+## Notes: Suivi des benedictions du groupe, un carre par membre.
+## Author: monsieur486
+## Version: 1.0
+
+Config.lua
+Sorts.lua
+Suivi.lua
+Cadre.lua
+GestoBene.lua
