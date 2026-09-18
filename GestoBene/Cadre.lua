@@ -227,7 +227,9 @@ local function CreerBoutonBascule(unite, carre)
     GameTooltip:SetText("Bascule de bénédiction")
     if suivante then
       local etat = GestoBene_Sorts.Etat(suivante)
-      GameTooltip:AddLine("→ " .. (etat and etat.nomNormale or suivante), 1, 1, 1)
+      -- ">" et non une flèche unicode : la police du client 3.3.5a ne la
+      -- connaît pas et affiche un carré à la place.
+      GameTooltip:AddLine("> " .. (etat and etat.nomNormale or suivante), 1, 1, 1)
       GameTooltip:AddLine("Ne s'applique qu'à ce joueur, jusqu'au prochain rechargement", 0.8, 0.8, 0.8)
     end
     GameTooltip:Show()
@@ -265,7 +267,10 @@ function ActualiserBascules()
       end
 
       if suivante then
-        bouton.texte:SetText("→ " .. GestoBene_Sorts.Abreger(suivante))
+        -- ">PUI", sans espace : la flèche unicode ressort en carré dans la
+        -- police du client 3.3.5a, et quatre caractères est déjà la limite
+        -- acceptée sur un carré de 48 pixels.
+        bouton.texte:SetText(">" .. GestoBene_Sorts.Abreger(suivante))
         bouton:Show()
       else
         bouton:Hide()
