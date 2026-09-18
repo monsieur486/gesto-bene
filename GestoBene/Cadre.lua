@@ -24,6 +24,18 @@ GestoBene_Etat = GestoBene_Etat or {}
 
 local ECART = 4
 
+-- Taille du cadenas, nettement sous celle d'un carré : à la taille d'un
+-- carré de bénédiction (48 pixels), l'aplat de couleur ne se lisait plus
+-- comme un cadenas mais comme un pavé détaché. Une vingtaine de pixels
+-- suffit à rester facile à voir et à attraper à la souris, ce qu'une case à
+-- cocher de 16 pixels n'était déjà pas.
+local TAILLE_CADENAS = 20
+
+-- Écart entre le cadenas et le premier carré, plus serré que celui entre
+-- deux carrés (ECART) : à une taille réduite à TAILLE_CADENAS, le même écart
+-- qu'entre carrés le ferait paraître détaché de l'ensemble.
+local ECART_CADENAS = 2
+
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
 -- entier déborde d'un carré de 48 pixels, et le fond rouge qui pulse dit déjà
 -- de quoi il retourne.
@@ -39,8 +51,12 @@ local COULEURS = {
 -- Couleurs pleines du cadenas, posées par SetTexture(r, v, b, a) comme pour
 -- les carrés ci-dessus : c'est la seule méthode dont on soit certain qu'elle
 -- fonctionne sur ce client, la vraie texture de cadenas n'étant garantie nulle
--- part. Gris sombre verrouillé, jaune vif libre : la différence doit sauter
--- aux yeux, sans avoir à distinguer une petite coche.
+-- part. Gris sombre verrouillé, jaune vif libre, et par-dessus une lettre
+-- ASCII (V ou L) : la couleur seule sur un aplat de 20 pixels ne suffisait
+-- plus à dire ce qu'il représentait, il fallait le nommer explicitement.
+-- Une lettre plutôt qu'un symbole : le client 3.3.5a n'a pas toujours le
+-- glyphe voulu en police, ce qui a déjà forcé à remplacer la flèche unicode
+-- du bouton de bascule par un ">" plus bas dans ce fichier.
 local COULEUR_CADENAS_VERROUILLE = { 0.20, 0.20, 0.20, 0.95 }
 local COULEUR_CADENAS_LIBRE      = { 1.00, 0.85, 0.00, 1.00 }
 
@@ -132,9 +148,13 @@ end
 local function ActualiserVerrou()
   if verrouille then
     cadenas.fond:SetTexture(unpack(COULEUR_CADENAS_VERROUILLE))
+    cadenas.lettre:SetText("V")
+    cadenas.lettre:SetTextColor(1, 1, 1, 1)
     parent:SetBackdropBorderColor(0, 0, 0, 0)
   else
     cadenas.fond:SetTexture(unpack(COULEUR_CADENAS_LIBRE))
+    cadenas.lettre:SetText("L")
+    cadenas.lettre:SetTextColor(0, 0, 0, 1)
     parent:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
   end
 end
@@ -152,21 +172,26 @@ local function MemoriserPosition()
 end
 
 -- Le cadenas : verrouille le déplacement du cadre, et sert lui-même de
--- poignée quand il est ouvert. Flotte à gauche des carrés sans leur prendre
--- de place : Disposer ne le connaît pas. Un carré de couleur unie, à la
--- taille d'un carré de bénédiction : facile à voir, facile à attraper à la
--- souris — ce qu'une case à cocher de 16 pixels n'était pas.
+-- poignée quand il est ouvert. Flotte à gauche des carrés, rapproché d'eux
+-- (ECART_CADENAS), sans leur prendre de place : Disposer ne le connaît pas.
+-- Un aplat de couleur à TAILLE_CADENAS, bien plus petit qu'un carré de
+-- bénédiction, avec une lettre dessus : facile à voir, facile à attraper à
+-- la souris, et explicite sur ce qu'il représente — ce qu'une case à cocher
+-- de 16 pixels n'était pas, et ce qu'un pavé de 48 pixels sans lettre
+-- n'était plus.
 local function CreerCadenas()
-  local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", "GestoBeneCadenas", parent)
-  bouton:SetWidth(taille)
-  bouton:SetHeight(taille)
-  bouton:SetPoint("RIGHT", parent, "LEFT", -ECART, 0)
+  bouton:SetWidth(TAILLE_CADENAS)
+  bouton:SetHeight(TAILLE_CADENAS)
+  bouton:SetPoint("RIGHT", parent, "LEFT", -ECART_CADENAS, 0)
   bouton:RegisterForClicks("LeftButtonUp")
   bouton:RegisterForDrag("LeftButton")
 
   bouton.fond = bouton:CreateTexture(nil, "BACKGROUND")
   bouton.fond:SetAllPoints(bouton)
+
+  bouton.lettre = bouton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  bouton.lettre:SetPoint("CENTER", bouton, "CENTER", 0, 0)
 
   bouton:SetScript("OnClick", function()
     verrouille = not verrouille
