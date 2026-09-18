@@ -4,19 +4,21 @@
 
 GestoBene_Config = {
 
-  -- Une bénédiction par classe.
   -- Valeurs admises : "Rois", "Puissance", "Sagesse", "Sanctuaire"
+  -- Les porteurs de tissu vivent sur leur mana : Sagesse.
+  -- Tous les autres profitent davantage des Rois.
+  -- Le paladin, c'est toi.
   parClasse = {
-    WARRIOR     = "Puissance",
-    PALADIN     = "Rois",
-    HUNTER      = "Puissance",
-    ROGUE       = "Puissance",
+    WARRIOR     = "Rois",
+    PALADIN     = "Sagesse",
+    HUNTER      = "Rois",
+    ROGUE       = "Rois",
     PRIEST      = "Sagesse",
-    DEATHKNIGHT = "Puissance",
-    SHAMAN      = "Sagesse",
+    DEATHKNIGHT = "Rois",
+    SHAMAN      = "Rois",
     MAGE        = "Sagesse",
     WARLOCK     = "Sagesse",
-    DRUID       = "Sagesse",
+    DRUID       = "Rois",
   },
 
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
