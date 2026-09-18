@@ -14,11 +14,12 @@ supérieure.
 ./installer.sh
 ```
 
-Le script copie `GestoBene/` dans `Interface/AddOns/` du client. Il refuse de
-tourner si le jeu est lancé, car WoW réécrit son dossier en quittant.
-
-⚠️ Un addon nouvellement installé n'apparaît pas au `/reload` : il faut fermer
-le client entièrement et le relancer pour que WoW découvre le dossier.
+Le script copie `GestoBene/` dans `Interface/AddOns/` du client. Le jeu peut
+rester ouvert : WoW ne réécrit jamais ce dossier, seul `WTF` l'est en
+quittant, et l'addon n'y touche pas puisqu'il n'utilise aucune
+SavedVariables. Un `/reload` suffit à prendre les changements — sauf à la
+première installation, où il faut fermer et relancer le client pour qu'il
+découvre le dossier.
 
 ## Réglages
 
