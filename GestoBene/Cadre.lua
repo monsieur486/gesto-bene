@@ -170,8 +170,11 @@ end
 -- création ; c'est ActualiserBascules() qui décide, à chaque reprogrammation,
 -- s'il a sa place.
 --
--- N'écrit jamais Config.lua : seule la table GestoBene_Config.parClasse en
--- mémoire change. Un /reload repart donc de la valeur du fichier.
+-- Le clic pose une surcharge nominative dans GestoBene_Suivi, pas une valeur
+-- de classe : deux joueurs de même classe peuvent avoir des besoins
+-- différents (un guerrier Fureur et un guerrier Protection, par exemple), et
+-- basculer l'un ne doit pas basculer l'autre. N'écrit jamais Config.lua : la
+-- surcharge meurt avec la session, comme le reste de GestoBene_Suivi.
 local function CreerBoutonBascule(unite, carre)
   local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", nil, parent)
@@ -195,10 +198,10 @@ local function CreerBoutonBascule(unite, carre)
     local reglage = jeton and GestoBene_Config.bascules[jeton]
     if not reglage then return end
 
-    local courante = GestoBene_Config.parClasse[jeton]
+    local effective = GestoBene_Suivi.Attendue(self.unite)
     local nouvelle = reglage[1]
-    if courante == reglage[1] then nouvelle = reglage[2] end
-    GestoBene_Config.parClasse[jeton] = nouvelle
+    if effective == reglage[1] then nouvelle = reglage[2] end
+    GestoBene_Suivi.Surcharger(UnitName(self.unite), nouvelle)
 
     -- Reprogrammer gère déjà le verrou de combat en différant si besoin. Les
     -- boutons, eux, affichent tout de suite le nouvel état : le joueur a
@@ -214,7 +217,7 @@ local function CreerBoutonBascule(unite, carre)
     GameTooltip:SetText("Bascule de bénédiction")
     if reglage then
       GameTooltip:AddLine(reglage[1] .. " / " .. reglage[2], 1, 1, 1)
-      GameTooltip:AddLine("Change pour toute la classe", 0.8, 0.8, 0.8)
+      GameTooltip:AddLine("Ne s'applique qu'à ce joueur", 0.8, 0.8, 0.8)
     end
     GameTooltip:Show()
   end)
@@ -225,9 +228,13 @@ end
 
 -- Remet à jour la visibilité et le texte de tous les boutons de bascule.
 -- Appelée après chaque reprogrammation (composition du groupe susceptible
--- d'avoir changé) et après chaque clic (règle par classe : deux carrés de
--- même classe doivent afficher la même chose). Aucun attribut protégé n'est
--- en jeu, donc rien ici ne se soucie du verrou de combat.
+-- d'avoir changé) et après chaque clic (la composition n'a pas bougé, mais
+-- un autre carré peut partager la classe qui vient de changer). Chaque
+-- bouton se calcule sur la bénédiction effective de son propre joueur
+-- (Suivi.Attendue, qui tient compte d'une éventuelle surcharge) : deux
+-- carrés de même classe n'affichent plus forcément la même chose. Aucun
+-- attribut protégé n'est en jeu, donc rien ici ne se soucie du verrou de
+-- combat.
 --
 -- Le bouton affiche l'option vers laquelle il basculerait, pas la courante :
 -- le carré juste en dessous montre déjà celle-ci, et « PUISSANCE » déborde
@@ -242,14 +249,15 @@ function ActualiserBascules()
         local _, jeton = UnitClass(unite)
         local reglage = jeton and GestoBene_Config.bascules[jeton]
         if reglage then
-          local courante = GestoBene_Config.parClasse[jeton]
-          if courante == reglage[1] then
+          local effective = GestoBene_Suivi.Attendue(unite)
+          if effective == reglage[1] then
             autre = reglage[2]
-          elseif courante == reglage[2] then
+          elseif effective == reglage[2] then
             autre = reglage[1]
           end
-          -- Une troisième valeur écrite à la main dans parClasse n'est ni
-          -- l'une ni l'autre : on cache le bouton plutôt que de deviner.
+          -- Une troisième valeur (surcharge ou parClasse écrits à la main)
+          -- n'est ni l'une ni l'autre : on cache le bouton plutôt que de
+          -- deviner.
         end
       end
 

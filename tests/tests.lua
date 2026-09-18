@@ -275,6 +275,19 @@ local function MondeGroupe()
   return monde
 end
 
+-- Deux guerriers dans le même groupe : sert à vérifier qu'une surcharge
+-- nominative ne déborde pas sur l'autre porteur de la même classe.
+local function MondeDeuxGuerriers()
+  local monde = MondeKahalie55()
+  monde.unites = {
+    player = { classe = "PALADIN", nom = "Kahalie" },
+    party1 = { classe = "WARRIOR", nom = "Gorkk" },
+    party2 = { classe = "WARRIOR", nom = "Thoromir" },
+  }
+  monde.buffs = {}
+  return monde
+end
+
 Test("en solo un seul membre", function()
   local monde = MondeKahalie55()
   monde.unites = { player = { classe = "PALADIN", nom = "Kahalie" } }
@@ -300,6 +313,64 @@ Test("la classe donne la benediction attendue", function()
   AssertEgal(GestoBene_Suivi.Attendue("party2"), "Sagesse", "mage")
   AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "guerrier")
   AssertNil(GestoBene_Suivi.Attendue("party3"), "unite absente")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Sans surcharge, rien ne change : la classe seule commande.
+Test("sans surcharge Attendue rend la valeur de la classe", function()
+  ChargerSuivi(MondeGroupe())
+  AssertNil(GestoBene_Suivi.Surcharge("Gorkk"), "aucune surcharge posee")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "guerrier sans surcharge")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Une surcharge nominative l'emporte sur la regle de classe.
+Test("une surcharge l emporte sur la valeur de classe", function()
+  ChargerSuivi(MondeGroupe())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  AssertEgal(GestoBene_Suivi.Surcharge("Gorkk"), "Puissance", "surcharge lue")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Puissance", "surcharge appliquee")
+  FauxAPI.Reinitialiser()
+end)
+
+-- L'objection de l'utilisateur : deux guerriers de besoins differents ne
+-- doivent plus etre solidaires.
+Test("deux joueurs de meme classe peuvent diverger", function()
+  ChargerSuivi(MondeDeuxGuerriers())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Puissance", "Gorkk surcharge")
+  AssertEgal(GestoBene_Suivi.Attendue("party2"), "Rois", "Thoromir garde la classe")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Surcharger(nom, nil) retire la surcharge : la classe reprend la main.
+Test("Surcharger avec nil retire la surcharge", function()
+  ChargerSuivi(MondeGroupe())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  GestoBene_Suivi.Surcharger("Gorkk", nil)
+  AssertNil(GestoBene_Suivi.Surcharge("Gorkk"), "surcharge retiree")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "la classe reprend la main")
+  FauxAPI.Reinitialiser()
+end)
+
+-- OublierSurcharges() vide tout, pour tout le monde a la fois.
+Test("OublierSurcharges vide toutes les surcharges", function()
+  ChargerSuivi(MondeDeuxGuerriers())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  GestoBene_Suivi.Surcharger("Thoromir", "Puissance")
+  GestoBene_Suivi.OublierSurcharges()
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "Gorkk revient a la classe")
+  AssertEgal(GestoBene_Suivi.Attendue("party2"), "Rois", "Thoromir revient a la classe")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Une surcharge sur un absent ne doit rien casser ni deborder sur les autres.
+Test("une surcharge sur un nom absent du groupe n a aucun effet", function()
+  ChargerSuivi(MondeGroupe())
+  GestoBene_Suivi.Surcharger("Fantome", "Puissance")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "guerrier present inchange")
+  AssertEgal(GestoBene_Suivi.Attendue("party2"), "Sagesse", "mage present inchange")
+  AssertEgal(GestoBene_Suivi.Surcharge("Fantome"), "Puissance", "la surcharge existe, sans effet sur le groupe")
   FauxAPI.Reinitialiser()
 end)
 

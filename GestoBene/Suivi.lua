@@ -7,6 +7,28 @@ local Suivi = GestoBene_Suivi
 -- L'ordre des carrés, fixé une fois pour toutes.
 Suivi.UNITES = { "player", "party1", "party2", "party3", "party4" }
 
+-- Surcharges nominatives posées en jeu par les boutons de bascule. Elles
+-- l'emportent sur la règle de classe, ne touchent jamais GestoBene_Config, et
+-- meurent avec la session : le groupe change à chaque donjon, et l'addon n'a
+-- aucune SavedVariables.
+local surcharges = {}
+
+-- Pose la surcharge du joueur nommé « nom » à « cle », ou la retire si
+-- « cle » vaut nil.
+function Suivi.Surcharger(nom, cle)
+  surcharges[nom] = cle
+end
+
+-- La surcharge du joueur nommé « nom », ou nil s'il n'en a pas.
+function Suivi.Surcharge(nom)
+  return surcharges[nom]
+end
+
+-- Vide toutes les surcharges : la classe reprend la main pour tout le monde.
+function Suivi.OublierSurcharges()
+  surcharges = {}
+end
+
 -- Les unités réellement présentes, dans l'ordre. En solo : { "player" }.
 -- C'est cette liste qui décide des carrés visibles ; elle vit ici, et non
 -- dans Cadre.lua, pour rester testable hors du jeu.
@@ -20,9 +42,15 @@ function Suivi.Membres()
   return membres
 end
 
--- La bénédiction que la classe de cette unité commande.
+-- La bénédiction attendue sur cette unité : sa surcharge nominative si le
+-- joueur en a posé une, sinon la règle de sa classe.
 function Suivi.Attendue(unite)
   if not UnitExists(unite) then return nil end
+
+  local nom = UnitName(unite)
+  local surcharge = nom and surcharges[nom]
+  if surcharge then return surcharge end
+
   local _, jeton = UnitClass(unite)
   if not jeton then return nil end
   return GestoBene_Config.parClasse[jeton]

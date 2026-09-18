@@ -7,8 +7,10 @@ GestoBene_Config = {
   -- Valeurs admises : "Rois", "Puissance", "Sagesse", "Sanctuaire"
   -- Les porteurs de tissu vivent sur leur mana : Sagesse.
   -- Tous les autres profitent davantage des Rois.
-  -- Le paladin, c'est toi : sa ligne bascule avec le bouton au-dessus de ton
-  -- carré, comme celle de toute classe listée dans « bascules » plus bas.
+  -- Le paladin, c'est toi : ta ligne sert de défaut au bouton au-dessus de
+  -- ton carré, comme celle de tout joueur dont la classe est listée dans
+  -- « bascules » plus bas. Le bouton surcharge le joueur nommément, en
+  -- mémoire seulement (GestoBene_Suivi) : cette table-ci ne bouge jamais.
   parClasse = {
     WARRIOR     = "Rois",
     PALADIN     = "Sagesse",
@@ -38,11 +40,14 @@ GestoBene_Config = {
   verrouille = true,
 
   -- Bascules par classe. Une classe listée ici gagne un bouton au-dessus de
-  -- son carré, qui alterne sa bénédiction entre les deux valeurs. Une classe
-  -- absente n'a pas de bouton et sa ligne de parClasse ne bouge jamais.
+  -- son carré, qui alterne la bénédiction du joueur entre les deux valeurs.
+  -- Une classe absente n'a pas de bouton et sa ligne de parClasse ne bouge
+  -- jamais.
   --
-  -- La règle reste par classe : s'il y a deux guerriers dans le groupe,
-  -- basculer au-dessus de l'un change les deux.
+  -- La règle est par joueur, pas par classe : un guerrier Fureur et un
+  -- guerrier Protection peuvent vouloir chacun autre chose, donc basculer
+  -- au-dessus de l'un ne change que lui. La surcharge vit dans
+  -- GestoBene_Suivi, jamais ici.
   bascules = {
     PALADIN     = { "Sagesse", "Puissance" },
     WARRIOR     = { "Rois", "Puissance" },
