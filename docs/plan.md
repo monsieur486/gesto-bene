@@ -891,7 +891,7 @@ end)
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : ÉCHEC sur les onze nouveaux cas, `cannot open ../GestoBene/Suivi.lua`.
+Attendu : ÉCHEC sur les treize nouveaux cas, `cannot open ../GestoBene/Suivi.lua`.
 
 - [ ] **Étape 3 : écrire Suivi.lua**
 
