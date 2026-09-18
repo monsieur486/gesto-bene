@@ -101,5 +101,17 @@ function Sorts.ValiderConfig()
       GestoBene_Config.parClasse[jeton] = "Puissance"
     end
   end
+
+  -- pairs() ci-dessus ne voit que les clés présentes dans parClasse : une
+  -- classe effacée par erreur ne produirait sinon aucun message, alors que
+  -- son carré affiche un bouton mort faute de bénédiction attendue.
+  for _, jeton in ipairs(CLASSES) do
+    if not GestoBene_Config.parClasse[jeton] then
+      avertissements[#avertissements + 1] =
+        "classe manquante dans Config.lua : " .. jeton .. ", repli sur Puissance"
+      GestoBene_Config.parClasse[jeton] = "Puissance"
+    end
+  end
+
   return avertissements
 end
