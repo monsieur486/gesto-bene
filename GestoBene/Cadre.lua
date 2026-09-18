@@ -21,6 +21,12 @@ local COULEURS = {
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
 
+-- Ce qui a réellement été appliqué au dernier Reprogrammer() réussi : par
+-- unité, sa visibilité et les noms posés dans spell1/spell2. Sert à ne pas
+-- lever le drapeau d'attente en combat quand l'ensemble visé n'a pas changé
+-- (section 9 du plan : un BAG_UPDATE de butin ne doit pas noyer le signal).
+local dernierApplique = {}
+
 -- Format mm:ss. Rend "--:--" quand la durée est indéterminée.
 local function FormaterTemps(restant)
   if not restant then return "--:--" end
@@ -114,13 +120,63 @@ local function Disposer(membres)
   parent:SetWidth(largeur)
 end
 
+-- Calcule ce que Reprogrammer poserait sur chaque carré : visibilité et noms
+-- de sorts spell1/spell2. Ne touche à rien ; sert à comparer l'ensemble visé
+-- à ce qui est réellement appliqué (dernierApplique).
+local function CalculerVise()
+  local membres = GestoBene_Suivi.Membres()
+  local visible = {}
+  for _, unite in ipairs(membres) do visible[unite] = true end
+
+  local vise = {}
+  for _, unite in ipairs(GestoBene_Suivi.UNITES) do
+    if visible[unite] then
+      local cle = GestoBene_Suivi.Attendue(unite)
+      vise[unite] = {
+        visible = true,
+        spell1 = cle and GestoBene_Sorts.NomAUtiliser(cle, false) or nil,
+        spell2 = cle and GestoBene_Sorts.NomAUtiliser(cle, true) or nil,
+      }
+    else
+      vise[unite] = { visible = false }
+    end
+  end
+  return vise, membres
+end
+
+-- Vrai si l'ensemble visé ne diffère en rien de ce qui a été appliqué au
+-- dernier Reprogrammer() réussi.
+local function VisePareilQuApplique(vise)
+  for unite, cible in pairs(vise) do
+    local applique = dernierApplique[unite]
+    if not applique
+        or applique.visible ~= cible.visible
+        or applique.spell1 ~= cible.spell1
+        or applique.spell2 ~= cible.spell2 then
+      return false
+    end
+  end
+  return true
+end
+
 -- Met à jour les attributs de sort et la visibilité. Les deux opérations sont
 -- interdites en combat sur un bouton protégé : si le verrou est posé, on met
 -- en attente et PLAYER_REGEN_ENABLED finira le travail.
+--
+-- Un mouvement de sac (butin, potion, Symbole des rois consommé) déclenche
+-- aussi cet appel via BAG_UPDATE. En combat, si le groupe et les sorts posés
+-- n'ont pas changé, lever le drapeau d'attente serait un mensonge : la
+-- bordure jaune ne doit dire « mon affichage est périmé » que lorsque c'est
+-- vrai, sous peine de devenir du bruit permanent dès le premier pull.
 function Cadre.Reprogrammer()
   if not parent then return end
 
+  local vise, membres = CalculerVise()
+
   if InCombatLockdown() then
+    if VisePareilQuApplique(vise) then
+      return
+    end
     reprogrammationEnAttente = true
     for _, carre in pairs(carres) do
       if carre:IsShown() then
@@ -131,20 +187,17 @@ function Cadre.Reprogrammer()
   end
 
   reprogrammationEnAttente = false
-  local membres = GestoBene_Suivi.Membres()
-  local visible = {}
-  for _, unite in ipairs(membres) do visible[unite] = true end
-
   for unite, carre in pairs(carres) do
-    if visible[unite] then
-      local cle = GestoBene_Suivi.Attendue(unite)
-      carre:SetAttribute("spell1", cle and GestoBene_Sorts.NomAUtiliser(cle, false) or nil)
-      carre:SetAttribute("spell2", cle and GestoBene_Sorts.NomAUtiliser(cle, true) or nil)
+    local cible = vise[unite]
+    if cible.visible then
+      carre:SetAttribute("spell1", cible.spell1)
+      carre:SetAttribute("spell2", cible.spell2)
       carre:Show()
     else
       carre:Hide()
     end
   end
+  dernierApplique = vise
 
   Disposer(membres)
   Cadre.Peindre()
@@ -243,9 +296,20 @@ function Cadre.Rafraichir()
   end
 end
 
+-- Montre ou cache le cadre parent. Rend une raison quand rien ne s'est passé
+-- (nil sinon), à charge de l'appelant de l'imprimer dans le chat.
 function Cadre.Basculer()
-  if not parent then return end
+  if not parent then
+    return "cadre non construit : /reload en combat, ou pas encore a la connexion"
+  end
+  -- Le cadre parent n'est pas un widget protégé, mais il porte des boutons
+  -- SecureActionButtonTemplate : RaidBuffStatus garde la même prudence sur
+  -- son équivalent (RaidBuffStatus/Core.lua:1513-1525).
+  if InCombatLockdown() then
+    return "impossible en combat"
+  end
   if parent:IsShown() then parent:Hide() else parent:Show() end
+  return nil
 end
 
 function Cadre.Position()
