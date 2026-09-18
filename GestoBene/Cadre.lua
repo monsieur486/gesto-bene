@@ -457,11 +457,13 @@ function Cadre.PeindreUnite(unite)
     carre.temps:SetText(TEXTE_ABSENTE)
   elseif etat.etat == "mauvaise" then
     carre.fond:SetTexture(unpack(COULEURS.mauvaise))
-    carre.abreviation:SetText(GestoBene_Sorts.Abreger(etat.clePortee))
+    -- Le + suit la bénédiction réellement portée (clePortee), pas celle
+    -- attendue (cle) : c'est elle qui décompte sur le carré.
+    carre.abreviation:SetText(GestoBene_Sorts.Abreger(etat.clePortee) .. (etat.superieure and "+" or ""))
     carre.temps:SetText(FormaterTemps(etat.restant))
   else
     carre.fond:SetTexture(unpack(COULEURS[etat.etat]))
-    carre.abreviation:SetText(GestoBene_Sorts.Abreger(etat.cle))
+    carre.abreviation:SetText(GestoBene_Sorts.Abreger(etat.cle) .. (etat.superieure and "+" or ""))
     carre.temps:SetText(FormaterTemps(etat.restant))
   end
 

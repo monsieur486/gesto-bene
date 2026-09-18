@@ -70,6 +70,17 @@ function Sorts.CleParSpellId(spellId)
   return parSpellId[spellId]
 end
 
+-- Vrai si l'identifiant désigne la version supérieure d'une bénédiction.
+-- Se fonde sur la table résolue (parSpellId puis Sorts.table), jamais sur une
+-- comparaison écrite en dur : un identifiant étranger à la table, ou qui
+-- n'est la supérieure d'aucune famille, rend faux.
+function Sorts.EstSuperieure(spellId)
+  local cle = parSpellId[spellId]
+  if not cle then return false end
+  local ids = Sorts.table[cle]
+  return ids ~= nil and ids.superieure == spellId
+end
+
 -- Rend le nom du sort à poser dans l'attribut du bouton.
 -- Le clic droit demande la supérieure ; faute de sort appris ou de réactif,
 -- il se replie sur la normale plutôt que de ne rien faire.

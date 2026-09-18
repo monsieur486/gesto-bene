@@ -248,6 +248,24 @@ Test("un spellId se retrouve dans sa benediction", function()
   FauxAPI.Reinitialiser()
 end)
 
+Test("une benediction normale n est pas marquee superieure", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.EstSuperieure(20217), false, "rois normale")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une benediction superieure est marquee comme telle", function()
+  ChargerSorts(MondeKahalie55())
+  AssertVrai(GestoBene_Sorts.EstSuperieure(25894), "sagesse superieure")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un identifiant etranger a la table n est pas marque superieure", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.EstSuperieure(12345), false, "identifiant inconnu")
+  FauxAPI.Reinitialiser()
+end)
+
 Test("les abreviations font trois lettres", function()
   ChargerSorts(MondeKahalie55())
   AssertEgal(GestoBene_Sorts.Abreger("Rois"), "ROI", "ROI")
@@ -484,6 +502,56 @@ Test("la mauvaise benediction est signalee comme telle", function()
   AssertEgal(etat.etat, "mauvaise", "etat")
   AssertEgal(etat.clePortee, "Puissance", "ce qu il porte")
   AssertEgal(etat.cle, "Sagesse", "ce qu il devrait porter")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Une normale posee ne doit pas remonter marquee superieure via Etat.
+Test("Etat transmet superieure a faux pour une normale posee", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").superieure, false, "sagesse normale")
+  FauxAPI.Reinitialiser()
+end)
+
+-- L'information doit traverser Etat pour les etats posee et bientot.
+Test("Etat transmet superieure a vrai pour une superieure posee", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 25894, duree = 1800, expiration = 2500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "posee")
+  AssertVrai(GestoBene_Suivi.Etat("party2").superieure, "sagesse superieure transmise")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("Etat transmet superieure pour l etat bientot", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 25894, duree = 1800, expiration = 1030, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "bientot", "bientot")
+  AssertVrai(GestoBene_Suivi.Etat("party2").superieure, "sagesse superieure transmise en bientot")
+  FauxAPI.Reinitialiser()
+end)
+
+-- L'etat mauvaise doit porter l'information de la benediction reellement
+-- portee (clePortee), pas de celle attendue.
+Test("l etat mauvaise porte l information de la benediction reellement posee", function()
+  local monde = MondeGroupe()
+  -- Le mage porte Puissance superieure alors que la config demande Sagesse.
+  monde.buffs.party2 = {
+    { spellId = 25782, duree = 1800, expiration = 2500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  local etat = GestoBene_Suivi.Etat("party2")
+  AssertEgal(etat.etat, "mauvaise", "etat")
+  AssertEgal(etat.clePortee, "Puissance", "ce qu il porte")
+  AssertVrai(etat.superieure, "la puissance reellement portee est superieure")
   FauxAPI.Reinitialiser()
 end)
 

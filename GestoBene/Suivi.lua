@@ -76,7 +76,10 @@ function Suivi.LireUnite(unite)
         end
         -- Une expiration nulle signifie une durée indéterminée : restant vaut nil.
         local fin = (expiration and expiration > 0) and expiration or nil
-        return { cle = cle, restant = restant, duree = duree, expiration = fin }
+        return {
+          cle = cle, restant = restant, duree = duree, expiration = fin,
+          superieure = GestoBene_Sorts.EstSuperieure(spellId),
+        }
       end
     end
     index = index + 1
@@ -101,6 +104,7 @@ function Suivi.Etat(unite)
     return {
       etat = "mauvaise", cle = attendue, clePortee = portee.cle,
       restant = portee.restant, expiration = portee.expiration, nom = nom,
+      superieure = portee.superieure,
     }
   end
 
@@ -112,5 +116,6 @@ function Suivi.Etat(unite)
   return {
     etat = etat, cle = attendue, clePortee = portee.cle,
     restant = portee.restant, expiration = portee.expiration, nom = nom,
+    superieure = portee.superieure,
   }
 end
