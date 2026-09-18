@@ -8,6 +8,20 @@
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
 
+-- SavedVariables : uniquement ce que l'addon produit lui-même, la position
+-- du cadre et l'état du cadenas. Rien d'autre — en particulier pas les
+-- surcharges par joueur de GestoBene_Suivi, qui doivent continuer de mourir
+-- avec la session. Créée vide ici même à la première installation ou si le
+-- fichier a été effacé, au cas où l'événement PLAYER_LOGIN de GestoBene.lua
+-- tarderait à s'exécuter.
+--
+-- Ceci n'a rien à voir avec le piège où un fichier modifié depuis le disque
+-- pendant que le jeu tourne se fait écraser à la fermeture : ce piège vient
+-- d'une édition externe concurrente, pas d'un addon qui écrit ses propres
+-- réglages par lui-même. Ici GestoBene_Etat n'est jamais touché que par
+-- l'addon, jamais par une main extérieure en cours de session.
+GestoBene_Etat = GestoBene_Etat or {}
+
 local ECART = 4
 
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
@@ -125,6 +139,18 @@ local function ActualiserVerrou()
   end
 end
 
+-- Mémorise la position courante du cadre dans GestoBene_Etat, pour qu'elle
+-- survive au /reload. Appelée quand l'utilisateur relâche le cadre après
+-- l'avoir déplacé, que ce soit par le cadenas ou par le cadre parent
+-- lui-même : les deux sont des poignées équivalentes. N'écrit jamais
+-- GestoBene_Config : Config.lua reste en lecture seule, cette position-ci ne
+-- sert que de mémoire de session à session, indépendante de l'ancrage qui y
+-- est écrit à la main.
+local function MemoriserPosition()
+  local point, _, _, x, y = parent:GetPoint()
+  GestoBene_Etat.position = { point = point, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
+end
+
 -- Le cadenas : verrouille le déplacement du cadre, et sert lui-même de
 -- poignée quand il est ouvert. Flotte à gauche des carrés sans leur prendre
 -- de place : Disposer ne le connaît pas. Un carré de couleur unie, à la
@@ -144,6 +170,9 @@ local function CreerCadenas()
 
   bouton:SetScript("OnClick", function()
     verrouille = not verrouille
+    -- Mémorisé à chaque bascule, contrairement à la position qui, elle, ne
+    -- se mémorise qu'au relâcher d'un glisser.
+    GestoBene_Etat.verrouille = verrouille
     ActualiserVerrou()
     -- Un retour écrit lève toute ambiguïté sur ce qui vient de se passer :
     -- la seule couleur ne suffisait pas, c'est exactement ce qui a été
@@ -160,7 +189,10 @@ local function CreerCadenas()
   bouton:SetScript("OnDragStart", function()
     if not verrouille then parent:StartMoving() end
   end)
-  bouton:SetScript("OnDragStop", function() parent:StopMovingOrSizing() end)
+  bouton:SetScript("OnDragStop", function()
+    parent:StopMovingOrSizing()
+    MemoriserPosition()
+  end)
 
   bouton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -306,11 +338,17 @@ function Cadre.Construire()
   constructionEnAttente = false
 
   -- Point de départ, lu une seule fois : GestoBene_Config reste en lecture
-  -- seule, l'état vécu du verrou vit ensuite dans la variable locale
-  -- « verrouille » ci-dessus.
-  verrouille = GestoBene_Config.verrouille
+  -- seule. L'état vécu vit ensuite dans la variable locale « verrouille »
+  -- ci-dessus, et dans la position du cadre lui-même ; GestoBene_Etat, lui,
+  -- prime dès qu'il contient quelque chose — première installation ou
+  -- fichier effacé mis à part, où il n'y a encore rien à reprendre.
+  if GestoBene_Etat.verrouille ~= nil then
+    verrouille = GestoBene_Etat.verrouille
+  else
+    verrouille = GestoBene_Config.verrouille
+  end
 
-  local ancrage = GestoBene_Config.ancrage
+  local ancrage = GestoBene_Etat.position or GestoBene_Config.ancrage
   parent = CreateFrame("Frame", "GestoBeneCadre", UIParent)
   parent:SetPoint(ancrage.point, UIParent, ancrage.point, ancrage.x, ancrage.y)
   parent:SetHeight(GestoBene_Config.tailleCarre + 16)
@@ -324,7 +362,10 @@ function Cadre.Construire()
   parent:SetScript("OnDragStart", function(self)
     if not verrouille then self:StartMoving() end
   end)
-  parent:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+  parent:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    MemoriserPosition()
+  end)
 
   -- Bordure du cadre : repère visuel du déverrouillage, cachée par défaut
   -- via l'alpha posé dans ActualiserVerrou.
