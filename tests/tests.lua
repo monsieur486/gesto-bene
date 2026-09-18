@@ -266,6 +266,25 @@ Test("un identifiant etranger a la table n est pas marque superieure", function(
   FauxAPI.Reinitialiser()
 end)
 
+-- Le bug du jour : un rang eleve (55) a un spellId absent de Sorts.table,
+-- mais UnitBuff rend le meme nom localise que le rang 1. C'est sur ce nom
+-- que la detection doit se faire.
+Test("CleParNom retrouve la benediction par son nom localise", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.CleParNom("Bénédiction de puissance"), "Puissance", "nom normale")
+  AssertEgal(GestoBene_Sorts.CleParNom("Bénédiction de sagesse supérieure"), "Sagesse", "nom superieure")
+  AssertNil(GestoBene_Sorts.CleParNom("Don du sauvage"), "nom etranger a la table")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("EstSuperieureParNom distingue normale et superieure par le nom", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.EstSuperieureParNom("Bénédiction de puissance"), false, "normale")
+  AssertVrai(GestoBene_Sorts.EstSuperieureParNom("Bénédiction de sagesse supérieure"), "superieure")
+  AssertEgal(GestoBene_Sorts.EstSuperieureParNom("Don du sauvage"), false, "nom inconnu")
+  FauxAPI.Reinitialiser()
+end)
+
 Test("les abreviations font trois lettres", function()
   ChargerSorts(MondeKahalie55())
   AssertEgal(GestoBene_Sorts.Abreger("Rois"), "ROI", "ROI")
@@ -616,6 +635,60 @@ Test("le balayage traverse les buffs etrangers", function()
   AssertVrai(porte ~= nil, "notre benediction est trouvee en 3e position")
   AssertEgal(porte.cle, "Sagesse", "la bonne cle")
   AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "etat")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Le cas exact remonté en jeu : le carré affichait PUI/X en rouge alors que
+-- l'infobulle du client montrait la Bénédiction de puissance posée. Un
+-- personnage de niveau 55 lance un rang avancé dont le spellId n'a rien à
+-- voir avec le rang 1 stocké dans Sorts.table ; seul le nom, identique pour
+-- tous les rangs, permet de la reconnaître.
+Test("un rang eleve inconnu de la table est reconnu par son nom", function()
+  local monde = MondeGroupe()
+  monde.sortsExistants[27142] = "Bénédiction de puissance"  -- rang eleve, absent de Sorts.table
+  monde.buffs.party2 = {
+    { spellId = 27142, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  local porte = GestoBene_Suivi.LireUnite("party2")
+  AssertVrai(porte ~= nil, "le rang eleve est reconnu")
+  AssertEgal(porte.cle, "Puissance", "bonne famille malgre le spellId inconnu")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("le rang eleve normal n est pas marque superieure", function()
+  local monde = MondeGroupe()
+  monde.sortsExistants[27142] = "Bénédiction de puissance"
+  monde.buffs.party2 = {
+    { spellId = 27142, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").superieure, false, "normale malgre le rang eleve")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un rang eleve de la superieure est reconnu comme superieure", function()
+  local monde = MondeGroupe()
+  monde.sortsExistants[27143] = "Bénédiction de puissance supérieure"  -- rang eleve, absent de Sorts.table
+  monde.buffs.party2 = {
+    { spellId = 27143, duree = 1800, expiration = 2500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  local porte = GestoBene_Suivi.LireUnite("party2")
+  AssertVrai(porte ~= nil, "le rang eleve de la superieure est reconnu")
+  AssertEgal(porte.cle, "Puissance", "meme famille")
+  AssertVrai(porte.superieure, "reconnue superieure par le nom")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un buff dont le nom est etranger a la table n est pas reconnu", function()
+  local monde = MondeGroupe()
+  monde.sortsExistants[1126] = "Don du sauvage"
+  monde.buffs.party2 = {
+    { spellId = 1126, duree = 3600, expiration = 4600, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertNil(GestoBene_Suivi.LireUnite("party2"), "buff etranger a la table ignore")
   FauxAPI.Reinitialiser()
 end)
 

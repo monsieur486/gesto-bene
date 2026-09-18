@@ -29,6 +29,14 @@ Sorts.ORDRE = { "Rois", "Puissance", "Sagesse", "Sanctuaire" }
 local etats = {}
 local parSpellId = {}
 
+-- Index par nom localisé, celui que rend UnitBuff en première valeur. La
+-- plupart des bénédictions ont une dizaine de rangs, chacun son propre
+-- identifiant de sort ; un rang avancé lancé à haut niveau n'a aucune chance
+-- de correspondre à l'identifiant du rang 1 stocké dans Sorts.table. Le nom,
+-- lui, est le même quel que soit le rang lancé : c'est sur lui que doit se
+-- faire la détection, pas sur l'identifiant.
+local parNom = {}
+
 function Sorts.Abreger(cle)
   return ABREVIATIONS[cle] or "?"
 end
@@ -45,6 +53,7 @@ end
 function Sorts.Resoudre()
   etats = {}
   parSpellId = {}
+  parNom = {}
   for cle, ids in pairs(Sorts.table) do
     local nomNormale,    normaleApprise    = ResoudreUn(ids.normale)
     local nomSuperieure, superieureApprise = ResoudreUn(ids.superieure)
@@ -56,8 +65,14 @@ function Sorts.Resoudre()
         superieureApprise = superieureApprise,
         existe = true,
       }
-      if nomNormale then parSpellId[ids.normale] = cle end
-      if nomSuperieure then parSpellId[ids.superieure] = cle end
+      if nomNormale then
+        parSpellId[ids.normale] = cle
+        parNom[nomNormale] = { cle = cle, superieure = false }
+      end
+      if nomSuperieure then
+        parSpellId[ids.superieure] = cle
+        parNom[nomSuperieure] = { cle = cle, superieure = true }
+      end
     end
   end
 end
@@ -79,6 +94,22 @@ function Sorts.EstSuperieure(spellId)
   if not cle then return false end
   local ids = Sorts.table[cle]
   return ids ~= nil and ids.superieure == spellId
+end
+
+-- La clé de bénédiction correspondant à ce nom localisé de sort, quel que
+-- soit le rang lancé. C'est la fonction que doit utiliser tout code qui lit
+-- un buff : UnitBuff rend le même nom pour tous les rangs d'une même
+-- bénédiction, alors que chaque rang a son propre spellId.
+function Sorts.CleParNom(nom)
+  local info = parNom[nom]
+  return info and info.cle
+end
+
+-- Vrai si ce nom localisé désigne la version supérieure d'une bénédiction.
+-- Un nom étranger à la table rend faux, tout comme la normale.
+function Sorts.EstSuperieureParNom(nom)
+  local info = parNom[nom]
+  return info ~= nil and info.superieure
 end
 
 -- Rend le nom du sort à poser dans l'attribut du bouton.

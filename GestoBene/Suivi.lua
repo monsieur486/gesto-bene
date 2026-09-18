@@ -64,10 +64,13 @@ function Suivi.LireUnite(unite)
   if not UnitExists(unite) then return nil end
   local index = 1
   while true do
-    local nom, _, _, _, _, duree, expiration, lanceur, _, _, spellId = UnitBuff(unite, index)
+    local nom, _, _, _, _, duree, expiration, lanceur = UnitBuff(unite, index)
     if not nom then return nil end
     if lanceur == "player" then
-      local cle = GestoBene_Sorts.CleParSpellId(spellId)
+      -- Le nom, pas le spellId : la plupart des bénédictions ont une
+      -- dizaine de rangs, chacun son propre identifiant, alors que UnitBuff
+      -- rend le même nom localisé quel que soit le rang lancé.
+      local cle = GestoBene_Sorts.CleParNom(nom)
       if cle then
         local restant
         if expiration and expiration > 0 then
@@ -78,7 +81,7 @@ function Suivi.LireUnite(unite)
         local fin = (expiration and expiration > 0) and expiration or nil
         return {
           cle = cle, restant = restant, duree = duree, expiration = fin,
-          superieure = GestoBene_Sorts.EstSuperieure(spellId),
+          superieure = GestoBene_Sorts.EstSuperieureParNom(nom),
         }
       end
     end
