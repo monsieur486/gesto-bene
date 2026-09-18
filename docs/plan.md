@@ -278,6 +278,14 @@ cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lu
 
 Attendu : `4 cas, 0 echec(s)`, code de sortie 0.
 
+> **Corrigé au tour 1 :** la relecture a montré que cinq des huit fonctions
+> posées par le faux n'étaient exercées par aucun test, et que `UnitClass`
+> comme `GetItemInfo` mentaient sur le comportement du client. Cinq cas ont
+> été ajoutés et le faux corrigé. Le total de cette tâche est donc de **9
+> cas**, et toutes les tâches suivantes comptent 5 cas de plus que ce que
+> leurs étapes annonçaient à l'origine. Voir `tests/faux-api.lua` pour la
+> version qui fait foi.
+
 - [ ] **Étape 5 : commit**
 
 ```bash
@@ -405,7 +413,7 @@ GestoBene = GestoBene or {}
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : `5 cas, 0 echec(s)`.
+Attendu : `10 cas, 0 echec(s)`.
 
 - [ ] **Étape 5 : vérifier la syntaxe puis commiter**
 
@@ -683,7 +691,7 @@ end
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : `14 cas, 0 echec(s)`.
+Attendu : `19 cas, 0 echec(s)`.
 
 - [ ] **Étape 5 : commit**
 
@@ -694,7 +702,7 @@ git add GestoBene/Sorts.lua tests/tests.lua
 git commit -m "feat: resout les benedictions et leur disponibilite"
 ```
 
-Attendu : les 14 cas passent, puis le commit est créé.
+Attendu : les 19 cas passent, puis le commit est créé.
 
 ---
 
@@ -984,7 +992,7 @@ end
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : `27 cas, 0 echec(s)`.
+Attendu : `32 cas, 0 echec(s)`.
 
 - [ ] **Étape 5 : commit**
 
@@ -995,7 +1003,7 @@ git add GestoBene/Suivi.lua tests/tests.lua
 git commit -m "feat: suit les benedictions posees sur chaque membre du groupe"
 ```
 
-Attendu : les 27 cas passent, puis le commit est créé.
+Attendu : les 32 cas passent, puis le commit est créé.
 
 ---
 
@@ -1264,7 +1272,7 @@ Attendu : `syntaxe OK`. Le fichier ne peut pas s'exécuter hors du jeu (il appel
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : `27 cas, 0 echec(s)`. Cadre.lua n'est pas chargé par les tests, donc rien ne doit bouger.
+Attendu : `32 cas, 0 echec(s)`. Cadre.lua n'est pas chargé par les tests, donc rien ne doit bouger.
 
 - [ ] **Étape 4 : commit**
 
@@ -1276,7 +1284,7 @@ git add GestoBene/Cadre.lua
 git commit -m "feat: affiche un carre cliquable par membre du groupe"
 ```
 
-Attendu : syntaxe valide, 27 cas au vert, puis le commit est créé.
+Attendu : syntaxe valide, 32 cas au vert, puis le commit est créé.
 
 ---
 
@@ -1426,7 +1434,7 @@ Attendu : les cinq fichiers annoncés `OK`.
 cd /home/mr486/Developpement/Projets/Plugins-Wow/GestoBene/tests && lua tests.lua
 ```
 
-Attendu : `27 cas, 0 echec(s)`.
+Attendu : `32 cas, 0 echec(s)`.
 
 - [ ] **Étape 4 : vérifier la complétude puis commiter**
 
