@@ -27,6 +27,14 @@ GestoBene_Config = {
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
   seuilAlerte = 60,
 
+  -- Seuils du compteur de Symboles des rois (le réactif des bénédictions
+  -- supérieures), affiché à droite des carrés. Au-dessus de seuilReactifBon,
+  -- le compteur est vert ; au-dessus de seuilReactifFaible, orange ; à ce
+  -- niveau ou en dessous, rouge : réserve basse. Ce sont des réglages, pas
+  -- des constantes de code — à ajuster selon la longueur des donjons visés.
+  seuilReactifBon = 10,
+  seuilReactifFaible = 5,
+
   -- Position du cadre. « /gesto pos » imprime les valeurs courantes à recopier.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 

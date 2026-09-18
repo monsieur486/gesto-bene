@@ -2,8 +2,9 @@
 -- Aucune décision ici. Tout vient de GestoBene_Suivi et GestoBene_Sorts.
 -- Des boutons ordinaires s'y ajoutent : le cadenas (verrouille le cadre) et,
 -- au-dessus de chaque carré, une bascule qui fait défiler les bénédictions
--- que ce joueur sait lancer. Aucun d'eux ne lance de sort ; seuls les cinq
--- carrés sont protégés.
+-- que ce joueur sait lancer. Un simple texte s'y ajoute aussi, à droite : le
+-- compteur de Symboles des rois. Aucun d'eux ne lance de sort ; seuls les
+-- cinq carrés sont protégés.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -36,6 +37,15 @@ local TAILLE_CADENAS = 20
 -- qu'entre carrés le ferait paraître détaché de l'ensemble.
 local ECART_CADENAS = 2
 
+-- Taille du compteur de Symboles des rois, du même ordre que celle du
+-- cadenas : il en fait le pendant de l'autre côté des carrés, sans lui
+-- disputer sa place ni imposer la taille pleine d'un carré de bénédiction.
+local TAILLE_COMPTEUR_REACTIF = 20
+
+-- Écart entre le dernier carré et le compteur, symétrique d'ECART_CADENAS de
+-- l'autre côté.
+local ECART_COMPTEUR_REACTIF = 4
+
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
 -- entier déborde d'un carré de 48 pixels, et le fond rouge qui pulse dit déjà
 -- de quoi il retourne.
@@ -60,14 +70,21 @@ local COULEURS = {
 local COULEUR_CADENAS_VERROUILLE = { 0.20, 0.20, 0.20, 0.95 }
 local COULEUR_CADENAS_LIBRE      = { 1.00, 0.85, 0.00, 1.00 }
 
+-- Couleurs du texte du compteur de réactif, selon l'abondance : les seuils
+-- eux-mêmes viennent de GestoBene_Config (seuilReactifBon, seuilReactifFaible),
+-- ce ne sont que les trois couleurs qui en résultent.
+local COULEUR_REACTIF_BON    = { 0.15, 0.90, 0.15, 1.00 }
+local COULEUR_REACTIF_MOYEN  = { 1.00, 0.60, 0.00, 1.00 }
+local COULEUR_REACTIF_BAS    = { 0.90, 0.15, 0.15, 1.00 }
+
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
 
--- Le cadenas à gauche des carrés, et un bouton de bascule par carré, tenu
--- dans une table indexée par unité. Boutons ordinaires : les créer, les
--- montrer, les cacher ou les cliquer en combat est licite, contrairement aux
--- cinq carrés.
-local cadenas, boutonsBascule = nil, {}
+-- Le cadenas à gauche des carrés, un bouton de bascule par carré (tenu dans
+-- une table indexée par unité), et le compteur de réactif à droite. Boutons
+-- ordinaires : les créer, les montrer, les cacher ou les cliquer en combat
+-- est licite, contrairement aux cinq carrés.
+local cadenas, boutonsBascule, compteurReactif = nil, {}, nil
 
 -- État du verrou, en mémoire seulement. GestoBene_Config doit rester en
 -- lecture seule — c'est la règle qui garantit que ce que l'utilisateur lit
@@ -231,6 +248,33 @@ local function CreerCadenas()
   bouton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   return bouton
+end
+
+-- Le compteur de Symboles des rois, à droite des carrés : fait pendant au
+-- cadenas de l'autre côté. Ancré au bord droit du cadre parent (comme le
+-- cadenas au bord gauche), il suit donc tout seul la largeur du parent
+-- quand Disposer l'ajuste au nombre de carrés visibles. Un simple texte sur
+-- un cadre ordinaire, sans attribut protégé : ActualiserReactif, plus bas,
+-- peut le repeindre à tout moment, même en plein combat.
+local function CreerCompteurReactif()
+  local compteur = CreateFrame("Frame", "GestoBeneCompteurReactif", parent)
+  compteur:SetWidth(TAILLE_COMPTEUR_REACTIF)
+  compteur:SetHeight(TAILLE_COMPTEUR_REACTIF)
+  compteur:SetPoint("LEFT", parent, "RIGHT", ECART_COMPTEUR_REACTIF, 0)
+
+  compteur.texte = compteur:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  compteur.texte:SetPoint("CENTER", compteur, "CENTER", 0, 0)
+
+  compteur:EnableMouse(true)
+  compteur:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Symboles des rois")
+    GameTooltip:AddLine("Reactif des benedictions superieures", 0.8, 0.8, 0.8)
+    GameTooltip:Show()
+  end)
+  compteur:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  return compteur
 end
 
 -- Un bouton de bascule par carré, créé avec lui, qu'il serve un jour ou
@@ -416,6 +460,7 @@ function Cadre.Construire()
   end
 
   cadenas = CreerCadenas()
+  compteurReactif = CreerCompteurReactif()
 
   ActualiserVerrou()
 
@@ -476,6 +521,24 @@ local function VisePareilQuApplique(vise)
   return true
 end
 
+-- Repeint le compteur de Symboles des rois : texte et couleur d'abondance.
+-- N'importe quel appelant peut s'en servir sans se soucier du verrou de
+-- combat, cadenas et texte n'étant pas des attributs protégés — à la
+-- différence de spell1/spell2 plus bas, qui eux ne peuvent pas se poser
+-- pendant un combat.
+local function ActualiserReactif()
+  if not compteurReactif then return end
+  local nombre = GetItemCount(GestoBene_Sorts.reactif)
+  compteurReactif.texte:SetText(tostring(nombre))
+  if nombre > GestoBene_Config.seuilReactifBon then
+    compteurReactif.texte:SetTextColor(unpack(COULEUR_REACTIF_BON))
+  elseif nombre > GestoBene_Config.seuilReactifFaible then
+    compteurReactif.texte:SetTextColor(unpack(COULEUR_REACTIF_MOYEN))
+  else
+    compteurReactif.texte:SetTextColor(unpack(COULEUR_REACTIF_BAS))
+  end
+end
+
 -- Met à jour les attributs de sort et la visibilité. Les deux opérations sont
 -- interdites en combat sur un bouton protégé : si le verrou est posé, on met
 -- en attente et PLAYER_REGEN_ENABLED finira le travail.
@@ -485,8 +548,15 @@ end
 -- n'ont pas changé, lever le drapeau d'attente serait un mensonge : la
 -- bordure jaune ne doit dire « mon affichage est périmé » que lorsque c'est
 -- vrai, sous peine de devenir du bruit permanent dès le premier pull.
+--
+-- Le compteur de réactif, lui, se repeint avant même de regarder le verrou :
+-- ce n'est qu'un texte sur un cadre ordinaire, rien n'y est protégé, et le
+-- joueur doit voir son stock de symboles baisser au moment où il en consomme
+-- un, pas seulement à la fin du combat.
 function Cadre.Reprogrammer()
   if not parent then return end
+
+  ActualiserReactif()
 
   local vise, membres = CalculerVise()
 
