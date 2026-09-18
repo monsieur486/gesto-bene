@@ -14,6 +14,7 @@ local COULEURS = {
 }
 
 local parent, carres, reprogrammationEnAttente = nil, {}, false
+local constructionEnAttente = false
 
 -- Format mm:ss. Rend "--:--" quand la durée est indéterminée.
 local function FormaterTemps(restant)
@@ -65,6 +66,15 @@ end
 -- combat : créer un bouton protégé pendant un combat est impossible.
 function Cadre.Construire()
   if parent then return end
+
+  -- Créer un bouton protégé et lui poser un attribut est interdit en combat.
+  -- Un /reload en plein combat arrive ici avec le verrou encore posé : on
+  -- diffère, et ViderFile rappellera Construire à la fin du combat.
+  if InCombatLockdown() then
+    constructionEnAttente = true
+    return
+  end
+  constructionEnAttente = false
 
   local ancrage = GestoBene_Config.ancrage
   parent = CreateFrame("Frame", "GestoBeneCadre", UIParent)
@@ -136,6 +146,10 @@ function Cadre.Reprogrammer()
 end
 
 function Cadre.ViderFile()
+  if constructionEnAttente then
+    Cadre.Construire()
+    return
+  end
   if reprogrammationEnAttente then
     Cadre.Reprogrammer()
   end
@@ -148,6 +162,15 @@ function Cadre.PeindreUnite(unite)
   if not carre or not carre:IsShown() then return end
 
   local etat = GestoBene_Suivi.Etat(unite)
+
+  -- L'unité a disparu (membre parti) mais le carré est encore visible : la
+  -- reprogrammation n'a pas encore tourné. On ne peint rien, et on oublie la
+  -- mémoire pour que Rafraichir n'anime pas un décompte périmé.
+  if etat.etat == "vide" then
+    carre.cache = nil
+    return
+  end
+
   carre.cache = etat
   carre.nom:SetText(etat.nom or "")
 
