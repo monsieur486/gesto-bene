@@ -2,10 +2,10 @@
 -- Piloté par une table « monde » décrivant sorts, sacs, unités et buffs.
 local FauxAPI = {}
 
-local poseees = {}
+local posees = {}
 
 local function poser(nom, fonction)
-  poseees[#poseees + 1] = nom
+  posees[#posees + 1] = nom
   _G[nom] = fonction
 end
 
@@ -37,22 +37,23 @@ function FauxAPI.Installer(monde)
     return nil
   end)
 
-  poser("GetItemCount", function(id) return sacs[id] or 0 end)
-  poser("GetItemInfo", function(id)
-    if sacs[id] then return "Symbole des rois" end
-    return nil
-  end)
+  local nomsObjets = monde.nomsObjets or { [21177] = "Symbole des rois" }
 
-  poser("UnitExists", function(unite) return unites[unite] ~= nil end)
+  poser("GetItemCount", function(id) return sacs[id] or 0 end)
+  poser("GetItemInfo", function(id) return nomsObjets[id] end)
+
+  poser("UnitExists", function(unite) return unites[unite] and 1 or nil end)
   poser("UnitName", function(unite)
     local u = unites[unite]
     return u and u.nom or nil
   end)
   -- UnitClass rend le nom localisé puis le jeton ; seul le jeton nous sert.
+  -- Le faux rend volontairement un premier retour distinct du jeton, pour
+  -- qu'un code qui confondrait les deux échoue au test au lieu de passer.
   poser("UnitClass", function(unite)
     local u = unites[unite]
     if not u then return nil end
-    return u.classe, u.classe
+    return u.nomClasse or ("classe-" .. u.classe), u.classe
   end)
 
   -- Onze valeurs, dans l'ordre du client 3.3.5a.
@@ -75,8 +76,8 @@ function FauxAPI.Installer(monde)
 end
 
 function FauxAPI.Reinitialiser()
-  for _, nom in ipairs(poseees) do _G[nom] = nil end
-  poseees = {}
+  for _, nom in ipairs(posees) do _G[nom] = nil end
+  posees = {}
 end
 
 return FauxAPI
