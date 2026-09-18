@@ -225,6 +225,21 @@ Test("une classe mal configuree tombe sur Puissance avec un avertissement", func
   FauxAPI.Reinitialiser()
 end)
 
+-- pairs(parClasse) ne juge que les clés présentes : une classe effacée par
+-- erreur du fichier édité à la main doit produire son propre avertissement.
+Test("une classe absente de Config produit son propre avertissement", function()
+  FauxAPI.Installer(MondeKahalie55())
+  dofile("../GestoBene/Config.lua")
+  GestoBene_Config.parClasse.MAGE = nil
+  dofile("../GestoBene/Sorts.lua")
+  GestoBene_Sorts.Resoudre()
+  local avertissements = GestoBene_Sorts.ValiderConfig()
+  AssertEgal(#avertissements, 1, "un seul avertissement")
+  AssertVrai(string.find(avertissements[1], "MAGE") ~= nil, "nomme la classe manquante")
+  AssertEgal(GestoBene_Config.parClasse.MAGE, "Puissance", "repli du mage")
+  FauxAPI.Reinitialiser()
+end)
+
 Test("un spellId se retrouve dans sa benediction", function()
   ChargerSorts(MondeKahalie55())
   AssertEgal(GestoBene_Sorts.CleParSpellId(25894), "Sagesse", "sagesse superieure")
@@ -395,9 +410,63 @@ Test("la superieure compte comme la benediction de sa famille", function()
   FauxAPI.Reinitialiser()
 end)
 
+-- Le relecteur a montré qu'un balayage qui abandonne au premier buff étranger
+-- passait les 32 cas : tous les mondes ne posaient qu'un seul buff. En donjon
+-- la bénédiction est rarement le premier buff d'un joueur.
+Test("le balayage traverse les buffs etrangers", function()
+  local monde = MondeGroupe()
+  monde.sortsExistants[1126] = "Don du sauvage"
+  monde.buffs.party2 = {
+    { spellId = 1126,  duree = 3600, expiration = 4600, lanceur = "party1" },
+    { spellId = 20217, duree = 600,  expiration = 1500, lanceur = "party1" },
+    { spellId = 19742, duree = 600,  expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  local porte = GestoBene_Suivi.LireUnite("party2")
+  AssertVrai(porte ~= nil, "notre benediction est trouvee en 3e position")
+  AssertEgal(porte.cle, "Sagesse", "la bonne cle")
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "etat")
+  FauxAPI.Reinitialiser()
+end)
+
+-- La règle du seuil existe en double : Suivi.Etat et Cadre.Rafraichir. Ce cas
+-- fixe la frontière pour qu'une divergence future se voie.
+Test("la frontiere du seuil est stricte", function()
+  local monde = MondeGroupe()          -- temps = 1000, seuilAlerte = 60
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1060, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").restant, 60, "exactement 60")
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "60 n est pas encore bientot")
+  FauxAPI.Reinitialiser()
+
+  monde.buffs.party2[1].expiration = 1059
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "bientot", "59 bascule")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Cas n° 15 de la conception § 11 : un membre hors ligne garde son carré.
+Test("un membre hors ligne garde son carre", function()
+  local monde = MondeGroupe()
+  monde.unites.party3 = { classe = "PRIEST", nom = "Lumen" }
+  -- Aucun buff lisible pour lui : c'est ce que voit le client d'un déconnecté.
+  ChargerSuivi(monde)
+  local membres = GestoBene_Suivi.Membres()
+  AssertEgal(#membres, 4, "il reste dans la liste")
+  AssertEgal(membres[4], "party3", "et a sa place, sans faire glisser les autres")
+  AssertEgal(GestoBene_Suivi.Etat("party3").etat, "absente", "son carre signale le manque")
+  FauxAPI.Reinitialiser()
+end)
+
 function LancerTests()
   for _, c in ipairs(cas) do
     local ok, err = pcall(c.fonction)
+    -- Un cas qui casse avant sa propre Reinitialiser() laisserait les
+    -- globales du faux en place et ferait cascader les cas suivants : on la
+    -- rappelle donc ici, sans condition sur le résultat.
+    FauxAPI.Reinitialiser()
     if ok then
       print("  ok   " .. c.nom)
     else
