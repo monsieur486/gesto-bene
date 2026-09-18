@@ -126,6 +126,121 @@ Test("la config fournit les dix classes", function()
   AssertEgal(GestoBene_Config.ancrage.point, "CENTER", "ancrage")
 end)
 
+-- Le monde de référence : Kahalie niveau 55, Vindicte, relevé du 2026-09-18.
+local function MondeKahalie55()
+  return {
+    temps = 1000,
+    sortsExistants = {
+      [20217] = "Bénédiction des rois",
+      [25898] = "Bénédiction des rois supérieure",
+      [19740] = "Bénédiction de puissance",
+      [25782] = "Bénédiction de puissance supérieure",
+      [19742] = "Bénédiction de sagesse",
+      [25894] = "Bénédiction de sagesse supérieure",
+      [20911] = "Bénédiction du sanctuaire",
+      [25899] = "Bénédiction du sanctuaire supérieure",
+    },
+    sortsConnus = {
+      [20217] = true, [19740] = true, [25782] = true,
+      [19742] = true, [25894] = true,
+      -- 25898 non : demande le niveau 60
+      -- 20911 et 25899 non : talent de Protection
+    },
+    sacs = { [21177] = 28 },
+  }
+end
+
+local function ChargerSorts(monde)
+  FauxAPI.Installer(monde)
+  dofile("../GestoBene/Config.lua")
+  dofile("../GestoBene/Sorts.lua")
+  GestoBene_Sorts.Resoudre()
+end
+
+Test("un sort appris est marque appris", function()
+  ChargerSorts(MondeKahalie55())
+  local etat = GestoBene_Sorts.Etat("Puissance")
+  AssertVrai(etat.existe, "Puissance existe")
+  AssertVrai(etat.normaleApprise, "Puissance normale apprise")
+  AssertVrai(etat.superieureApprise, "Puissance superieure apprise")
+  AssertEgal(etat.nomNormale, "Bénédiction de puissance", "nom normale")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un sort non appris est distingue d un sort inexistant", function()
+  ChargerSorts(MondeKahalie55())
+  local sanctuaire = GestoBene_Sorts.Etat("Sanctuaire")
+  AssertVrai(sanctuaire.existe, "Sanctuaire existe sur ce client")
+  AssertEgal(sanctuaire.normaleApprise, false, "Sanctuaire non appris")
+  AssertNil(GestoBene_Sorts.Etat("Lumiere"), "Lumiere absente de la table")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un identifiant que le client ignore est retire sans erreur", function()
+  local monde = MondeKahalie55()
+  monde.sortsExistants[25899] = nil  -- comme si le client ignorait cet id
+  ChargerSorts(monde)
+  local etat = GestoBene_Sorts.Etat("Sanctuaire")
+  AssertVrai(etat.existe, "la normale existe encore")
+  AssertNil(etat.nomSuperieure, "la superieure disparait")
+  AssertEgal(etat.superieureApprise, false, "superieure non apprise")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Le cas du jour : à 55, la supérieure des Rois n'est pas apprise.
+Test("le clic droit se replie sur la normale quand la superieure manque", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.NomAUtiliser("Rois", true),
+             "Bénédiction des rois", "repli des Rois")
+  AssertEgal(GestoBene_Sorts.NomAUtiliser("Puissance", true),
+             "Bénédiction de puissance supérieure", "Puissance superieure")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("sans reactif la superieure se replie aussi", function()
+  local monde = MondeKahalie55()
+  monde.sacs[21177] = 0
+  ChargerSorts(monde)
+  AssertEgal(GestoBene_Sorts.NomAUtiliser("Puissance", true),
+             "Bénédiction de puissance", "repli faute de symbole")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une benediction totalement inconnue ne rend aucun nom", function()
+  ChargerSorts(MondeKahalie55())
+  AssertNil(GestoBene_Sorts.NomAUtiliser("Sanctuaire", false), "Sanctuaire non lancable")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une classe mal configuree tombe sur Puissance avec un avertissement", function()
+  FauxAPI.Installer(MondeKahalie55())
+  dofile("../GestoBene/Config.lua")
+  GestoBene_Config.parClasse.MAGE = "Lumiere"
+  GestoBene_Config.parClasse.ZORGLUB = "Rois"
+  dofile("../GestoBene/Sorts.lua")
+  GestoBene_Sorts.Resoudre()
+  local avertissements = GestoBene_Sorts.ValiderConfig()
+  AssertEgal(#avertissements, 2, "deux avertissements")
+  AssertEgal(GestoBene_Config.parClasse.MAGE, "Puissance", "repli du mage")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un spellId se retrouve dans sa benediction", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.CleParSpellId(25894), "Sagesse", "sagesse superieure")
+  AssertEgal(GestoBene_Sorts.CleParSpellId(20217), "Rois", "rois normale")
+  AssertNil(GestoBene_Sorts.CleParSpellId(12345), "sort etranger")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("les abreviations font trois lettres", function()
+  ChargerSorts(MondeKahalie55())
+  AssertEgal(GestoBene_Sorts.Abreger("Rois"), "ROI", "ROI")
+  AssertEgal(GestoBene_Sorts.Abreger("Sanctuaire"), "SAN", "SAN")
+  AssertEgal(GestoBene_Sorts.Abreger("Inexistante"), "?", "inconnue")
+  FauxAPI.Reinitialiser()
+end)
+
 function LancerTests()
   for _, c in ipairs(cas) do
     local ok, err = pcall(c.fonction)
