@@ -1,5 +1,7 @@
 -- Les cinq carrés : création, attributs sécurisés, couleurs.
 -- Aucune décision ici. Tout vient de GestoBene_Suivi et GestoBene_Sorts.
+-- Le cadenas qui verrouille le cadre s'y ajoute : un bouton ordinaire, qui ne
+-- lance aucun sort et ne porte donc aucun attribut sécurisé.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -20,6 +22,10 @@ local COULEURS = {
 
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
+
+-- Le cadenas à gauche des carrés. Bouton ordinaire : le créer, le montrer,
+-- le cacher ou le cliquer en combat est licite, contrairement aux carrés.
+local cadenas = nil
 
 -- Ce qui a réellement été appliqué au dernier Reprogrammer() réussi : par
 -- unité, sa visibilité et les noms posés dans spell1/spell2. Sert à ne pas
@@ -73,6 +79,83 @@ local function CreerCarre(unite, index)
   return carre
 end
 
+-- Le vrai cadenas n'est pas garanti sur ce client : aucun addon installé ne
+-- l'utilise. SetTexture rend false si le fichier manque, on se rabat alors
+-- sur la case à cocher, présente partout. Rend vrai si la vraie texture a pu
+-- être posée, pour que l'appelant sache s'il doit surimprimer une coche.
+local function PoserTexture(texture, ferme)
+  local chemin = ferme and "Interface\\Buttons\\LockButton-Locked-Up"
+                       or "Interface\\Buttons\\LockButton-Unlocked-Up"
+  if texture:SetTexture(chemin) then return true end
+  texture:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
+  return false
+end
+
+-- Reflète l'état verrouillé/déverrouillé : icône du cadenas (ou coche de
+-- secours) et bordure du cadre parent. Appelée à la construction et après
+-- chaque clic sur le cadenas.
+local function ActualiserVerrou()
+  local verrouille = GestoBene_Config.verrouille
+
+  local reelle = PoserTexture(cadenas.icone, verrouille)
+  if not reelle and verrouille then
+    cadenas.coche:Show()
+  else
+    cadenas.coche:Hide()
+  end
+
+  if verrouille then
+    parent:SetBackdropBorderColor(0, 0, 0, 0)
+  else
+    parent:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
+  end
+end
+
+-- Le cadenas : verrouille le déplacement du cadre, et sert lui-même de
+-- poignée quand il est ouvert. Flotte à gauche des carrés sans leur prendre
+-- de place : Disposer ne le connaît pas.
+local function CreerCadenas()
+  local bouton = CreateFrame("Button", "GestoBeneCadenas", parent)
+  bouton:SetWidth(16)
+  bouton:SetHeight(16)
+  bouton:SetPoint("RIGHT", parent, "LEFT", -ECART, 0)
+  bouton:RegisterForClicks("LeftButtonUp")
+  bouton:RegisterForDrag("LeftButton")
+
+  bouton.icone = bouton:CreateTexture(nil, "ARTWORK")
+  bouton.icone:SetAllPoints(bouton)
+
+  bouton.coche = bouton:CreateTexture(nil, "OVERLAY")
+  bouton.coche:SetAllPoints(bouton)
+  bouton.coche:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+  bouton.coche:Hide()
+
+  bouton:SetScript("OnClick", function()
+    GestoBene_Config.verrouille = not GestoBene_Config.verrouille
+    ActualiserVerrou()
+  end)
+
+  -- Poignée soumise au même verrou que celle du cadre parent : verrouillé,
+  -- glisser ne fait rien.
+  bouton:SetScript("OnDragStart", function()
+    if not GestoBene_Config.verrouille then parent:StartMoving() end
+  end)
+  bouton:SetScript("OnDragStop", function() parent:StopMovingOrSizing() end)
+
+  bouton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    if GestoBene_Config.verrouille then
+      GameTooltip:SetText("Cadre verrouillé — cliquer pour libérer")
+    else
+      GameTooltip:SetText("Cadre libre — glisser pour déplacer, cliquer pour verrouiller")
+    end
+    GameTooltip:Show()
+  end)
+  bouton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  return bouton
+end
+
 -- Crée le cadre parent et les cinq carrés. À n'appeler qu'une fois, hors
 -- combat : créer un bouton protégé pendant un combat est impossible.
 function Cadre.Construire()
@@ -95,12 +178,26 @@ function Cadre.Construire()
   parent:SetMovable(true)
   parent:EnableMouse(true)
   parent:RegisterForDrag("LeftButton")
-  parent:SetScript("OnDragStart", function(self) self:StartMoving() end)
+
+  -- Le parent reste une seconde poignée, mais soumise au même verrou que le
+  -- cadenas : verrouillé, un glisser sur le cadre lui-même ne fait rien.
+  parent:SetScript("OnDragStart", function(self)
+    if not GestoBene_Config.verrouille then self:StartMoving() end
+  end)
   parent:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
+  -- Bordure du cadre : repère visuel du déverrouillage, cachée par défaut
+  -- via l'alpha posé dans ActualiserVerrou.
+  parent:SetBackdrop({
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+  })
 
   for index, unite in ipairs(GestoBene_Suivi.UNITES) do
     carres[unite] = CreerCarre(unite, index)
   end
+
+  cadenas = CreerCadenas()
+  ActualiserVerrou()
 
   Cadre.Reprogrammer()
 end

@@ -29,4 +29,10 @@ GestoBene_Config = {
 
   -- Taille d'un carré, en pixels.
   tailleCarre = 48,
+
+  -- Le cadre démarre verrouillé. En donjon on clique partout, et un cadre qui
+  -- se déplace par accident est une gêne. Le cadenas à gauche des carrés le
+  -- libère d'un clic. L'état ne survit pas au /reload : sans SavedVariables,
+  -- il repart toujours de cette valeur.
+  verrouille = true,
 }
