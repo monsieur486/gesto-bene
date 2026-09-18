@@ -241,6 +241,160 @@ Test("les abreviations font trois lettres", function()
   FauxAPI.Reinitialiser()
 end)
 
+local function ChargerSuivi(monde)
+  FauxAPI.Installer(monde)
+  dofile("../GestoBene/Config.lua")
+  dofile("../GestoBene/Sorts.lua")
+  dofile("../GestoBene/Suivi.lua")
+  GestoBene_Sorts.Resoudre()
+end
+
+local function MondeGroupe()
+  local monde = MondeKahalie55()
+  monde.unites = {
+    player = { classe = "PALADIN", nom = "Kahalie" },
+    party1 = { classe = "WARRIOR", nom = "Gorkk" },
+    party2 = { classe = "MAGE",    nom = "Zaza" },
+  }
+  monde.buffs = {}
+  return monde
+end
+
+Test("en solo un seul membre", function()
+  local monde = MondeKahalie55()
+  monde.unites = { player = { classe = "PALADIN", nom = "Kahalie" } }
+  ChargerSuivi(monde)
+  local membres = GestoBene_Suivi.Membres()
+  AssertEgal(#membres, 1, "un seul membre")
+  AssertEgal(membres[1], "player", "c est le joueur")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("a trois les membres sont contigus et dans l ordre", function()
+  ChargerSuivi(MondeGroupe())
+  local membres = GestoBene_Suivi.Membres()
+  AssertEgal(#membres, 3, "trois membres")
+  AssertEgal(membres[1], "player", "1")
+  AssertEgal(membres[2], "party1", "2")
+  AssertEgal(membres[3], "party2", "3")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("la classe donne la benediction attendue", function()
+  ChargerSuivi(MondeGroupe())
+  AssertEgal(GestoBene_Suivi.Attendue("party2"), "Sagesse", "mage")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Puissance", "guerrier")
+  AssertNil(GestoBene_Suivi.Attendue("party3"), "unite absente")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une unite inexistante est vide", function()
+  ChargerSuivi(MondeGroupe())
+  AssertEgal(GestoBene_Suivi.Etat("party4").etat, "vide", "party4")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une benediction d un autre paladin ne compte pas", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1500, lanceur = "party3" },
+  }
+  ChargerSuivi(monde)
+  AssertNil(GestoBene_Suivi.LireUnite("party2"), "buff etranger ignore")
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "absente", "donc absente")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("le temps restant se calcule depuis l expiration", function()
+  local monde = MondeGroupe()          -- temps = 1000
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").restant, 500, "500 s restantes")
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "au-dessus du seuil")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("un restant negatif est ramene a zero", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 900, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").restant, 0, "jamais negatif")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("sous le seuil l etat passe a bientot", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1030, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "bientot", "30 s restantes")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("la mauvaise benediction est signalee comme telle", function()
+  local monde = MondeGroupe()
+  -- Le mage porte Puissance alors que la config demande Sagesse.
+  monde.buffs.party2 = {
+    { spellId = 19740, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  local etat = GestoBene_Suivi.Etat("party2")
+  AssertEgal(etat.etat, "mauvaise", "etat")
+  AssertEgal(etat.clePortee, "Puissance", "ce qu il porte")
+  AssertEgal(etat.cle, "Sagesse", "ce qu il devrait porter")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une expiration nulle rend une duree indeterminee", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 0, expiration = 0, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertNil(GestoBene_Suivi.LireUnite("party2").restant, "restant indetermine")
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "posee quand meme")
+  FauxAPI.Reinitialiser()
+end)
+
+-- L'expiration doit remonter telle quelle : Cadre.Rafraichir en dépend pour
+-- recalculer le décompte sans relire les buffs.
+Test("l expiration absolue est transmise", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 600, expiration = 1500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").expiration, 1500, "expiration")
+  AssertEgal(GestoBene_Suivi.Etat("party2").expiration, 1500, "via Etat")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("une expiration nulle ne remonte pas d expiration", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 19742, duree = 0, expiration = 0, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertNil(GestoBene_Suivi.LireUnite("party2").expiration, "pas d expiration")
+  FauxAPI.Reinitialiser()
+end)
+
+Test("la superieure compte comme la benediction de sa famille", function()
+  local monde = MondeGroupe()
+  monde.buffs.party2 = {
+    { spellId = 25894, duree = 1800, expiration = 2500, lanceur = "player" },
+  }
+  ChargerSuivi(monde)
+  AssertEgal(GestoBene_Suivi.Etat("party2").etat, "posee", "sagesse superieure")
+  AssertEgal(GestoBene_Suivi.LireUnite("party2").cle, "Sagesse", "meme famille")
+  FauxAPI.Reinitialiser()
+end)
+
 function LancerTests()
   for _, c in ipairs(cas) do
     local ok, err = pcall(c.fonction)
