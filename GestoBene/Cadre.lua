@@ -22,6 +22,14 @@ local COULEURS = {
   mauvaise = { 0.50, 0.45, 0.05, 0.90 },
 }
 
+-- Couleurs pleines du cadenas, posées par SetTexture(r, v, b, a) comme pour
+-- les carrés ci-dessus : c'est la seule méthode dont on soit certain qu'elle
+-- fonctionne sur ce client, la vraie texture de cadenas n'étant garantie nulle
+-- part. Gris sombre verrouillé, jaune vif libre : la différence doit sauter
+-- aux yeux, sans avoir à distinguer une petite coche.
+local COULEUR_CADENAS_VERROUILLE = { 0.20, 0.20, 0.20, 0.95 }
+local COULEUR_CADENAS_LIBRE      = { 1.00, 0.85, 0.00, 1.00 }
+
 local parent, carres, reprogrammationEnAttente = nil, {}, false
 local constructionEnAttente = false
 
@@ -30,6 +38,21 @@ local constructionEnAttente = false
 -- montrer, les cacher ou les cliquer en combat est licite, contrairement aux
 -- cinq carrés.
 local cadenas, boutonsBascule = nil, {}
+
+-- État du verrou, en mémoire seulement. GestoBene_Config doit rester en
+-- lecture seule — c'est la règle qui garantit que ce que l'utilisateur lit
+-- dans son fichier est ce que l'addon applique — donc le cadenas ne touche
+-- jamais GestoBene_Config.verrouille ; il ne fait que s'en inspirer une fois,
+-- à la construction. Comme les surcharges de GestoBene_Suivi, cet état ne
+-- survit pas au /reload.
+local verrouille = true
+
+-- Message dans le chat, même prefixe que GestoBene.lua : un cadenas qui ne
+-- fait que changer une couleur silencieusement laisse planer le doute sur ce
+-- qui vient de se passer.
+local function Dire(message)
+  DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99GestoBene|r : " .. message)
+end
 
 -- Déclarée ici pour que le clic d'un bouton (défini plus bas) puisse
 -- l'appeler ; définie plus loin, une fois Disposer et compagnie en place.
@@ -87,75 +110,64 @@ local function CreerCarre(unite, index)
   return carre
 end
 
--- Le vrai cadenas n'est pas garanti sur ce client : aucun addon installé ne
--- l'utilise. SetTexture rend false si le fichier manque, on se rabat alors
--- sur la case à cocher, présente partout. Rend vrai si la vraie texture a pu
--- être posée, pour que l'appelant sache s'il doit surimprimer une coche.
-local function PoserTexture(texture, ferme)
-  local chemin = ferme and "Interface\\Buttons\\LockButton-Locked-Up"
-                       or "Interface\\Buttons\\LockButton-Unlocked-Up"
-  if texture:SetTexture(chemin) then return true end
-  texture:SetTexture("Interface\\Buttons\\UI-CheckBox-Up")
-  return false
-end
-
--- Reflète l'état verrouillé/déverrouillé : icône du cadenas (ou coche de
--- secours) et bordure du cadre parent. Appelée à la construction et après
--- chaque clic sur le cadenas.
+-- Reflète l'état verrouillé/déverrouillé : couleur du cadenas et bordure du
+-- cadre parent. Appelée à la construction et après chaque clic sur le
+-- cadenas. Se fonde sur la variable locale « verrouille », jamais sur
+-- GestoBene_Config : ce fichier ne relit la configuration qu'une fois, à la
+-- construction.
 local function ActualiserVerrou()
-  local verrouille = GestoBene_Config.verrouille
-
-  local reelle = PoserTexture(cadenas.icone, verrouille)
-  if not reelle and verrouille then
-    cadenas.coche:Show()
-  else
-    cadenas.coche:Hide()
-  end
-
   if verrouille then
+    cadenas.fond:SetTexture(unpack(COULEUR_CADENAS_VERROUILLE))
     parent:SetBackdropBorderColor(0, 0, 0, 0)
   else
+    cadenas.fond:SetTexture(unpack(COULEUR_CADENAS_LIBRE))
     parent:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
   end
 end
 
 -- Le cadenas : verrouille le déplacement du cadre, et sert lui-même de
 -- poignée quand il est ouvert. Flotte à gauche des carrés sans leur prendre
--- de place : Disposer ne le connaît pas.
+-- de place : Disposer ne le connaît pas. Un carré de couleur unie, à la
+-- taille d'un carré de bénédiction : facile à voir, facile à attraper à la
+-- souris — ce qu'une case à cocher de 16 pixels n'était pas.
 local function CreerCadenas()
+  local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", "GestoBeneCadenas", parent)
-  bouton:SetWidth(16)
-  bouton:SetHeight(16)
+  bouton:SetWidth(taille)
+  bouton:SetHeight(taille)
   bouton:SetPoint("RIGHT", parent, "LEFT", -ECART, 0)
   bouton:RegisterForClicks("LeftButtonUp")
   bouton:RegisterForDrag("LeftButton")
 
-  bouton.icone = bouton:CreateTexture(nil, "ARTWORK")
-  bouton.icone:SetAllPoints(bouton)
-
-  bouton.coche = bouton:CreateTexture(nil, "OVERLAY")
-  bouton.coche:SetAllPoints(bouton)
-  bouton.coche:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-  bouton.coche:Hide()
+  bouton.fond = bouton:CreateTexture(nil, "BACKGROUND")
+  bouton.fond:SetAllPoints(bouton)
 
   bouton:SetScript("OnClick", function()
-    GestoBene_Config.verrouille = not GestoBene_Config.verrouille
+    verrouille = not verrouille
     ActualiserVerrou()
+    -- Un retour écrit lève toute ambiguïté sur ce qui vient de se passer :
+    -- la seule couleur ne suffisait pas, c'est exactement ce qui a été
+    -- rapporté.
+    if verrouille then
+      Dire("cadre verrouillé")
+    else
+      Dire("cadre libre, glisse-le par le cadenas")
+    end
   end)
 
   -- Poignée soumise au même verrou que celle du cadre parent : verrouillé,
   -- glisser ne fait rien.
   bouton:SetScript("OnDragStart", function()
-    if not GestoBene_Config.verrouille then parent:StartMoving() end
+    if not verrouille then parent:StartMoving() end
   end)
   bouton:SetScript("OnDragStop", function() parent:StopMovingOrSizing() end)
 
   bouton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    if GestoBene_Config.verrouille then
-      GameTooltip:SetText("Cadre verrouillé — cliquer pour libérer")
+    if verrouille then
+      GameTooltip:SetText("Cadre verrouillé - cliquer pour libérer")
     else
-      GameTooltip:SetText("Cadre libre — glisser pour déplacer, cliquer pour verrouiller")
+      GameTooltip:SetText("Cadre libre - glisser pour déplacer, cliquer pour verrouiller")
     end
     GameTooltip:Show()
   end)
@@ -293,6 +305,11 @@ function Cadre.Construire()
   end
   constructionEnAttente = false
 
+  -- Point de départ, lu une seule fois : GestoBene_Config reste en lecture
+  -- seule, l'état vécu du verrou vit ensuite dans la variable locale
+  -- « verrouille » ci-dessus.
+  verrouille = GestoBene_Config.verrouille
+
   local ancrage = GestoBene_Config.ancrage
   parent = CreateFrame("Frame", "GestoBeneCadre", UIParent)
   parent:SetPoint(ancrage.point, UIParent, ancrage.point, ancrage.x, ancrage.y)
@@ -305,7 +322,7 @@ function Cadre.Construire()
   -- Le parent reste une seconde poignée, mais soumise au même verrou que le
   -- cadenas : verrouillé, un glisser sur le cadre lui-même ne fait rien.
   parent:SetScript("OnDragStart", function(self)
-    if not GestoBene_Config.verrouille then self:StartMoving() end
+    if not verrouille then self:StartMoving() end
   end)
   parent:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
