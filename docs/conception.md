@@ -50,7 +50,7 @@ GestoBene/
 ├── Sorts.lua             table des bénédictions, résolution des noms      [pur]
 ├── Suivi.lua             qui porte quoi, combien de temps il reste        [pur]
 ├── Cadre.lua             les cinq carrés, boutons sécurisés, couleurs
-└── GestoBene.lua      événements, commandes /ben
+└── GestoBene.lua      événements, commandes /gesto (alias /ben)
 ```
 
 Ordre de chargement dans le `.toc` : `Config`, `Sorts`, `Suivi`, `Cadre`,
@@ -60,7 +60,11 @@ Ordre de chargement dans le `.toc` : `Config`, `Sorts`, `Suivi`, `Cadre`,
 des données, ils rendent des données. Ce sont les deux seuls fichiers couverts
 par des tests.
 
-`Cadre.lua` ne contient aucune décision : il peint ce que `Suivi.lua` lui donne.
+`Cadre.lua` ne porte aucune règle de résolution de bénédiction : c'est
+`Suivi.lua` qui décide qui porte quoi, et `Cadre.lua` peint ce résultat sans le
+remettre en question. Il contient malgré tout ses propres décisions
+d'affichage — le formatage mm:ss, la formule de pulsation, la réévaluation du
+seuil hors de `Suivi.Etat` (section 8) — assumées et non testées (section 11).
 
 ## 5. Config.lua
 
@@ -86,7 +90,7 @@ GestoBene_Config = {
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
   seuilAlerte = 60,
 
-  -- Position du cadre. « /ben pos » imprime les valeurs courantes à recopier.
+  -- Position du cadre. « /gesto pos » imprime les valeurs courantes à recopier.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 
   -- Taille d'un carré, en pixels.
@@ -186,7 +190,7 @@ Trois conséquences pour l'implémentation :
    doit donc se replier sur la normale — cas courant, pas exceptionnel, et le
    test 4 doit le couvrir avec ces valeurs-là.
 
-La commande `/ben sorts` reproduit ce tableau à la demande, pour refaire le
+La commande `/gesto sorts` reproduit ce tableau à la demande, pour refaire le
 relevé après un niveau ou un changement de spécialisation. Une entrée dont
 `GetSpellInfo(id)` rend `nil` est retirée de la table utilisable, sans erreur.
 
@@ -368,10 +372,15 @@ de se mettre à jour normalement en combat.
 | `ACTIVE_TALENT_GROUP_CHANGED` | Re-résoudre après un basculement de double spé |
 | `BAG_UPDATE` | Recompter les symboles |
 | `PLAYER_REGEN_ENABLED` | Vider la file de reprogrammation |
-| `PLAYER_REGEN_DISABLED` | Marquer l'entrée en combat |
 
 `PARTY_MEMBERS_CHANGED` est bien le nom de l'événement en 3.3.5a —
 `GROUP_ROSTER_UPDATE` n'existe qu'à partir de la 5.0.
+
+`PLAYER_REGEN_DISABLED` n'est volontairement pas enregistré : rien dans
+l'addon n'a besoin de savoir *quand* le combat commence, seulement de savoir
+*si* on y est au moment d'agir, et `InCombatLockdown()` répond à cette
+question directement, sans état à tenir à jour ni risque de le désynchroniser
+de la réalité du jeu.
 
 ### Rafraîchissement
 
@@ -383,12 +392,15 @@ balayage des auras n'a donc lieu que sur événement.
 
 | Commande | Effet |
 |---|---|
-| `/ben` | Montrer ou cacher le cadre |
-| `/ben sorts` | Imprimer la résolution des identifiants et l'état appris |
-| `/ben pos` | Imprimer l'ancrage courant à recopier dans `Config.lua` |
-| `/ben etat` | Imprimer, pour chaque membre, classe, bénédiction attendue, état |
+| `/gesto` | Montrer ou cacher le cadre |
+| `/gesto sorts` | Imprimer la résolution des identifiants et l'état appris |
+| `/gesto pos` | Imprimer l'ancrage courant à recopier dans `Config.lua` |
+| `/gesto etat` | Imprimer, pour chaque membre, classe, bénédiction attendue, état |
 
-`/ben pos` est la contrepartie du choix « sans SavedVariables » : le cadre se
+`/gesto` est la commande principale ; `/ben` est un alias court, plus rapide à
+taper en jeu.
+
+`/gesto pos` est la contrepartie du choix « sans SavedVariables » : le cadre se
 déplace à la souris, mais la position ne survit pas au rechargement tant qu'elle
 n'est pas recopiée dans le fichier. C'est explicite et assumé.
 
@@ -433,8 +445,10 @@ Sur `Suivi.lua` :
     `absente`, plutôt que de faire glisser les autres.
 
 `Cadre.lua` et `GestoBene.lua` ne sont pas couverts : ils touchent l'API
-graphique et le système d'événements, qu'on ne simule pas raisonnablement. C'est
-précisément pourquoi ils ne portent aucune décision. Ils se vérifient en jeu.
+graphique et le système d'événements, qu'on ne simule pas raisonnablement.
+Aucun des deux ne porte de règle de résolution de bénédiction — c'est tout ce
+que ce choix garantit. `Cadre.lua` contient tout de même des décisions
+d'affichage assumées et non testées (section 4). Ils se vérifient en jeu.
 
 ### Vérification en jeu
 
@@ -442,7 +456,7 @@ Une fois les tests au vert, la recette manuelle tient en sept points :
 
 1. Le cadre apparaît à la connexion.
 2. **Seul en ville, un unique carré s'affiche** — celui de Kahalie.
-3. `/ben sorts` montre des identifiants valides.
+3. `/gesto sorts` montre des identifiants valides.
 4. Un clic gauche pose la bonne bénédiction et le décompte démarre.
 5. Un clic droit pose la supérieure et consomme un symbole.
 6. **Entrer en groupe hors combat fait apparaître les carrés manquants** et
@@ -465,9 +479,9 @@ Retiré volontairement, faute d'usage établi :
 
 | Risque | Parade |
 |---|---|
-| Identifiants de sorts faux | `/ben sorts` les montre ; une entrée non résolue est ignorée, pas fatale |
+| Identifiants de sorts faux | `/gesto sorts` les montre ; une entrée non résolue est ignorée, pas fatale |
 | Une bénédiction apprise plus tard (supérieure des Rois à 60, Sanctuaire au changement de spé) | `SPELLS_CHANGED` re-résout la table ; le carré s'allume sans rien éditer |
 | Changement de groupe en combat | Rendu « en attente », reprogrammation différée à `PLAYER_REGEN_ENABLED` |
 | `Show` / `Hide` interdits en combat sur un bouton protégé | Les cinq carrés sont créés hors combat une fois pour toutes ; seule leur visibilité varie, par la même file d'attente |
-| `UnitBuff` muet sur une unité hors de portée | État `absente` affiché ; on ne peut pas distinguer, et c'est sans conséquence puisque le clic échouerait de toute façon |
+| `UnitBuff` muet sur une unité hors de portée | Pas de rebasculement en `absente` : le carré garde son dernier état connu, `Cadre.Rafraichir` continue le décompte depuis l'expiration mémorisée sans relire de buff, jusqu'au prochain `UNIT_AURA` qui, lui, dira la vérité |
 | Le dossier du client n'est pas sous git | La spec et l'addon ne sont pas versionnés ; accepté pour ce projet |
