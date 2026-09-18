@@ -55,8 +55,8 @@ local COULEURS = {
 -- ASCII (V ou L) : la couleur seule sur un aplat de 20 pixels ne suffisait
 -- plus à dire ce qu'il représentait, il fallait le nommer explicitement.
 -- Une lettre plutôt qu'un symbole : le client 3.3.5a n'a pas toujours le
--- glyphe voulu en police, ce qui a déjà forcé à remplacer la flèche unicode
--- du bouton de bascule par un ">" plus bas dans ce fichier.
+-- glyphe voulu en police, ce qui a déjà forcé à retirer toute flèche et tout
+-- symbole du bouton de bascule plus bas dans ce fichier.
 local COULEUR_CADENAS_VERROUILLE = { 0.20, 0.20, 0.20, 0.95 }
 local COULEUR_CADENAS_LIBRE      = { 1.00, 0.85, 0.00, 1.00 }
 
@@ -294,11 +294,19 @@ local function CreerBoutonBascule(unite, carre)
     local suivante = GestoBene_Sorts.Suivante(effective)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("Bascule de bénédiction")
+    -- Nomme d'abord ce qui est choisi pour ce joueur, puis ce qu'un clic
+    -- poserait : le bouton affiche déjà la choisie, le carré en dessous ce
+    -- qui est réellement porté, et c'est le clic qui fait avancer le cycle.
+    -- Toujours en toutes lettres depuis Sorts.Etat(...).nomNormale, jamais
+    -- écrit en dur ; sans aucun caractère hors ASCII, comme le reste de ce
+    -- bouton (la flèche unicode a déjà dû être retirée plus bas).
+    if effective then
+      local etatActuelle = GestoBene_Sorts.Etat(effective)
+      GameTooltip:AddLine("Choisie : " .. (etatActuelle and etatActuelle.nomNormale or effective), 1, 1, 1)
+    end
     if suivante then
-      local etat = GestoBene_Sorts.Etat(suivante)
-      -- ">" et non une flèche unicode : la police du client 3.3.5a ne la
-      -- connaît pas et affiche un carré à la place.
-      GameTooltip:AddLine("> " .. (etat and etat.nomNormale or suivante), 1, 1, 1)
+      local etatSuivante = GestoBene_Sorts.Etat(suivante)
+      GameTooltip:AddLine("Un clic pose : " .. (etatSuivante and etatSuivante.nomNormale or suivante), 1, 1, 1)
       GameTooltip:AddLine("Ne s'applique qu'à ce joueur, jusqu'au prochain rechargement", 0.8, 0.8, 0.8)
     end
     GameTooltip:Show()
@@ -320,26 +328,29 @@ end
 --
 -- Un bouton est montré si son carré est visible et que Sorts.Suivante() rend
 -- quelque chose pour la bénédiction effective de ce joueur : un bouton qui
--- ne mène nulle part est pire qu'un bouton absent. Il affiche l'option vers
--- laquelle il basculerait, pas la courante : le carré juste en dessous
--- montre déjà celle-ci, et « PUISSANCE » déborde d'un carré de 48 pixels
--- comme « MANQUE » l'a fait.
+-- ne mène nulle part est pire qu'un bouton absent. La condition de
+-- visibilité ne change pas.
+--
+-- Il affiche la bénédiction actuellement choisie pour ce joueur, pas celle
+-- vers laquelle il basculerait : afficher "PUI" pendant que le carré du
+-- dessous applique les Rois se lisait comme une sélection qui ne
+-- correspondait pas à ce qui était réellement posé, alors que le carré
+-- montre ce qui est porté et le bouton ce qui a été choisi. Le clic, lui,
+-- continue de faire passer à la suivante du cycle ; seul l'affichage change.
+-- Sans "> " ni aucun symbole : juste l'abréviation, comme sur les carrés.
 function ActualiserBascules()
   for _, unite in ipairs(GestoBene_Suivi.UNITES) do
     local bouton = boutonsBascule[unite]
     local carre = carres[unite]
     if bouton and carre then
-      local suivante = nil
+      local effective, suivante = nil, nil
       if carre:IsShown() then
-        local effective = GestoBene_Suivi.Attendue(unite)
+        effective = GestoBene_Suivi.Attendue(unite)
         suivante = GestoBene_Sorts.Suivante(effective)
       end
 
       if suivante then
-        -- ">PUI", sans espace : la flèche unicode ressort en carré dans la
-        -- police du client 3.3.5a, et quatre caractères est déjà la limite
-        -- acceptée sur un carré de 48 pixels.
-        bouton.texte:SetText(">" .. GestoBene_Sorts.Abreger(suivante))
+        bouton.texte:SetText(GestoBene_Sorts.Abreger(effective))
         bouton:Show()
       else
         bouton:Hide()
