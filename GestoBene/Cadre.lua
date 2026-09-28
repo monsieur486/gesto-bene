@@ -494,10 +494,14 @@ local function CalculerVise()
   for _, unite in ipairs(GestoBene_Suivi.UNITES) do
     if visible[unite] then
       local cle = GestoBene_Suivi.Attendue(unite)
+      -- Le clic droit retombe sur la normale quand la supérieure, qui vise
+      -- toute la classe, écraserait le choix d'un autre joueur de cette
+      -- classe (voir Suivi.SuperieurePermise).
+      local superieure = GestoBene_Suivi.SuperieurePermise(unite)
       vise[unite] = {
         visible = true,
         spell1 = cle and GestoBene_Sorts.NomAUtiliser(cle, false) or nil,
-        spell2 = cle and GestoBene_Sorts.NomAUtiliser(cle, true) or nil,
+        spell2 = cle and GestoBene_Sorts.NomAUtiliser(cle, superieure) or nil,
       }
     else
       vise[unite] = { visible = false }

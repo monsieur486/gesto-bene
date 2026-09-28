@@ -462,6 +462,34 @@ Test("une surcharge sur un nom absent du groupe n a aucun effet", function()
   FauxAPI.Reinitialiser()
 end)
 
+-- Une supérieure touche toute la classe : tant que les porteurs de la même
+-- classe attendent la même chose, rien ne s'y oppose.
+Test("la superieure est permise quand la classe est unanime", function()
+  ChargerSuivi(MondeDeuxGuerriers())
+  AssertVrai(GestoBene_Suivi.SuperieurePermise("party1"), "Gorkk")
+  AssertVrai(GestoBene_Suivi.SuperieurePermise("party2"), "Thoromir")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Le bug vu en donjon : la supérieure lancée sur l'un écrasait la
+-- bénédiction de l'autre guerrier, dont le carré virait au rouge.
+Test("la superieure est refusee quand deux porteurs de meme classe divergent", function()
+  ChargerSuivi(MondeDeuxGuerriers())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  AssertEgal(GestoBene_Suivi.SuperieurePermise("party1"), false, "Gorkk")
+  AssertEgal(GestoBene_Suivi.SuperieurePermise("party2"), false, "Thoromir")
+  FauxAPI.Reinitialiser()
+end)
+
+-- Une classe seule dans le groupe n'a personne à écraser.
+Test("la superieure reste permise pour une classe seule", function()
+  ChargerSuivi(MondeDeuxGuerriers())
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  AssertVrai(GestoBene_Suivi.SuperieurePermise("player"), "le paladin est seul de sa classe")
+  AssertEgal(GestoBene_Suivi.SuperieurePermise("party4"), false, "unite absente")
+  FauxAPI.Reinitialiser()
+end)
+
 Test("une unite inexistante est vide", function()
   ChargerSuivi(MondeGroupe())
   AssertEgal(GestoBene_Suivi.Etat("party4").etat, "vide", "party4")

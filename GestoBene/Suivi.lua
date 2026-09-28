@@ -56,6 +56,28 @@ function Suivi.Attendue(unite)
   return GestoBene_Config.parClasse[jeton]
 end
 
+-- Vrai si l'on peut lancer une supérieure sur cette unité sans rien casser.
+-- Le jeu applique une supérieure à tous les membres de la classe ciblée, et
+-- elle remplace notre bénédiction sur chacun d'eux : si un autre porteur de
+-- la même classe attend autre chose, elle écraserait son choix. Dans ce cas
+-- le clic droit doit se contenter de la normale, qui ne touche que la cible.
+function Suivi.SuperieurePermise(unite)
+  if not UnitExists(unite) then return false end
+  local _, jeton = UnitClass(unite)
+  if not jeton then return false end
+  local attendue = Suivi.Attendue(unite)
+
+  for _, autre in ipairs(Suivi.Membres()) do
+    if autre ~= unite then
+      local _, jetonAutre = UnitClass(autre)
+      if jetonAutre == jeton and Suivi.Attendue(autre) ~= attendue then
+        return false
+      end
+    end
+  end
+  return true
+end
+
 -- Notre bénédiction sur cette unité, s'il y en a une.
 -- Le filtre sur le lanceur est essentiel : la bénédiction d'un autre paladin
 -- ne doit pas faire croire que le travail est fait, puisqu'on ne peut pas
