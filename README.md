@@ -8,6 +8,13 @@ lui reste, et alerte quand elle manque ou expire bientôt. Un clic sur un carré
 lance la bénédiction : clic gauche pour la normale, clic droit pour la
 supérieure.
 
+La supérieure s'applique en jeu à tous les membres de la classe ciblée et
+remplace ta bénédiction sur chacun d'eux. Quand deux joueurs de la même
+classe attendent des bénédictions différentes, le clic droit pose donc la
+normale, qui ne touche que la cible : la supérieure écraserait le choix de
+l'autre. Il la pose aussi faute de supérieure apprise ou de Symbole des rois
+en sac.
+
 ## Installation
 
 ```bash
