@@ -1,6 +1,6 @@
 # Addon GestoBene — conception
 
-Date : 2026-09-18
+Date : 2026-09-18 — mis à jour le 2026-09-28
 Client : WoW 3.3.5a (Interface 30300), locale `frFR`
 Personnage visé : Kahalie, paladin (Vindicte en solo, Protection en donjon)
 
@@ -8,12 +8,12 @@ Personnage visé : Kahalie, paladin (Vindicte en solo, Protection en donjon)
 
 Suivre les bénédictions du groupe en donjon 5 joueurs. Un carré par membre
 présent — cinq en groupe complet, **un seul en solo**. Chaque carré montre la
-bénédiction que la classe de ce membre commande, le temps qu'il lui reste, et
-alerte quand elle manque ou expire bientôt. Un clic sur un carré lance la
-bénédiction.
+bénédiction attendue pour ce membre, le temps qu'il lui reste, et alerte quand
+elle manque ou expire bientôt. Un clic sur un carré lance la bénédiction.
 
 L'addon ne décide rien : il montre l'état et sert de bouton. La table des
-classes est écrite à la main dans un fichier, hors du jeu.
+classes est écrite à la main dans un fichier, hors du jeu ; un bouton au-dessus
+de chaque carré permet d'y déroger pour un joueur, le temps de la session.
 
 ## 2. Décisions retenues
 
@@ -21,9 +21,10 @@ classes est écrite à la main dans un fichier, hors du jeu.
 |---|---|---|
 | Ce que décompte un carré | Durée restante du buff, plus une alerte d'absence | Les bénédictions n'ont pas de temps de recharge en 3.3.5a, seulement le GCD |
 | Type de bénédiction | Normale et supérieure, au choix du clic | L'addon suit la montée de niveau sans être refait |
-| Granularité de la config | Par classe uniquement | Dix lignes, c'est la logique même des bénédictions supérieures du jeu |
-| Effet du clic | Lancer la bénédiction prévue, jamais la changer | La config par classe est la seule source de vérité |
-| Stockage des réglages | Fichier Lua de l'addon, aucune SavedVariables | Éditable hors du jeu, rien que WoW puisse réécrire en quittant |
+| Granularité de la config | Par classe dans `Config.lua`, surchargeable par joueur en jeu | Deux joueurs de même classe peuvent avoir des besoins différents (un guerrier Fureur et un guerrier Protection) |
+| Effet du clic sur un carré | Lancer la bénédiction prévue, jamais la changer | Changer de bénédiction passe par le bouton de bascule, pas par le carré |
+| Supérieure quand la classe diverge | Le clic droit pose la normale | Une supérieure touche toute la classe et écraserait le choix de l'autre joueur |
+| Stockage des réglages | `Config.lua` en lecture seule ; `GestoBene_Etat` pour la position et le cadenas | Éditable hors du jeu ; seul ce que l'addon produit lui-même est mémorisé |
 | Groupe incomplet ou solo | Les carrés sans occupant sont **cachés**, pas grisés | En solo l'addon se réduit à un seul carré, celui de Kahalie |
 
 ## 3. Terrain vérifié
@@ -39,17 +40,20 @@ Constats établis sur le poste, avec la source :
 - `InCombatLockdown` est employé par dix-huit addons du dossier : le verrou de
   combat est bien la contrainte attendue sur ce client.
 - Lua 5.1.5 est installé sur le poste (`/usr/bin/lua`). C'est la version exacte
-  qu'embarque WoW 3.3.5a, donc la logique pure se teste hors du jeu.
+  qu'embarque WoW 3.3.5a, donc la logique pure se teste hors du jeu. Sur un
+  poste qui ne l'a pas : `sudo apt install lua5.1`.
 
 ## 4. Découpage
 
 ```
 GestoBene/
-├── GestoBene.toc      déclaration, ## Interface: 30300
+├── GestoBene.toc      déclaration, ## Interface: 30300, SavedVariables
 ├── Config.lua            réglages — le seul fichier que l'utilisateur édite
 ├── Sorts.lua             table des bénédictions, résolution des noms      [pur]
-├── Suivi.lua             qui porte quoi, combien de temps il reste        [pur]
-├── Cadre.lua             les cinq carrés, boutons sécurisés, couleurs
+├── Suivi.lua             qui porte quoi, combien de temps il reste,
+│                         surcharges par joueur                            [pur]
+├── Cadre.lua             les cinq carrés, boutons sécurisés, couleurs,
+│                         bascules, cadenas, compteur de symboles
 └── GestoBene.lua      événements, commandes /gesto (alias /ben)
 ```
 
@@ -72,34 +76,45 @@ Un unique tableau global, commenté en français, sans dépendance.
 
 ```lua
 GestoBene_Config = {
-  -- Une bénédiction par classe.
   -- Valeurs admises : "Rois", "Puissance", "Sagesse", "Sanctuaire"
+  -- Les porteurs de tissu vivent sur leur mana : Sagesse.
+  -- Tous les autres profitent davantage des Rois.
   parClasse = {
-    WARRIOR     = "Puissance",
-    PALADIN     = "Rois",
-    HUNTER      = "Puissance",
-    ROGUE       = "Puissance",
+    WARRIOR     = "Rois",
+    PALADIN     = "Sagesse",
+    HUNTER      = "Rois",
+    ROGUE       = "Rois",
     PRIEST      = "Sagesse",
-    DEATHKNIGHT = "Puissance",
-    SHAMAN      = "Sagesse",
+    DEATHKNIGHT = "Rois",
+    SHAMAN      = "Rois",
     MAGE        = "Sagesse",
     WARLOCK     = "Sagesse",
-    DRUID       = "Sagesse",
+    DRUID       = "Rois",
   },
 
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
   seuilAlerte = 60,
 
-  -- Position du cadre. « /gesto pos » imprime les valeurs courantes à recopier.
+  -- Seuils du compteur de Symboles des rois : vert au-dessus du premier,
+  -- orange au-dessus du second, rouge en dessous.
+  seuilReactifBon = 10,
+  seuilReactifFaible = 5,
+
+  -- Position du cadre à la toute première connexion.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 
   -- Taille d'un carré, en pixels.
   tailleCarre = 48,
+
+  -- État du cadenas à la toute première connexion.
+  verrouille = true,
 }
 ```
 
 Un changement prend effet au `/reload` ou à la reconnexion. Aucune écriture :
-le fichier est lu, jamais modifié par l'addon.
+le fichier est lu, jamais modifié par l'addon. `ancrage` et `verrouille` ne
+servent plus qu'à la première connexion : ensuite, `GestoBene_Etat` l'emporte
+(section 8).
 
 ### Validation au chargement
 
@@ -202,19 +217,26 @@ Pour une unité donnée, dire quelle bénédiction **que nous avons lancée** el
 porte, et combien de temps il lui reste.
 
 ```lua
-GestoBene_Suivi.LireUnite(unite) -- → { cle, restant, duree } ou nil
+GestoBene_Suivi.LireUnite(unite)
+-- → { cle, restant, duree, expiration, superieure } ou nil
 ```
 
 ### Lecture
 
 Balayer `UnitBuff(unite, i)` de `i = 1` jusqu'au premier retour `nil`. Retenir
-le premier buff dont le `spellId` appartient à la table **et** dont le `caster`
+le premier buff dont le **nom** appartient à la table **et** dont le `caster`
 est `"player"`. Le filtre sur le lanceur est essentiel : la bénédiction d'un
 autre paladin ne doit pas faire croire que le travail est fait, puisque nous ne
 pouvons pas la rafraîchir.
 
+La reconnaissance se fait par le nom localisé, pas par le `spellId` : la
+plupart des bénédictions ont une dizaine de rangs, chacun avec son propre
+identifiant, alors que `UnitBuff` rend le même nom quel que soit le rang. Le
+nom dit aussi si la bénédiction portée est la supérieure, ce que le carré
+signale d'un `+`.
+
 ```lua
-local nom, _, _, _, _, duree, expiration, lanceur, _, _, spellId = UnitBuff(unite, i)
+local nom, _, _, _, _, duree, expiration, lanceur = UnitBuff(unite, i)
 ```
 
 Temps restant : `expiration - GetTime()`, borné à zéro par le bas. Une expiration
@@ -227,8 +249,35 @@ lieu d'un nombre.
 GestoBene_Suivi.Attendue(unite) -- → clé de bénédiction, ou nil
 ```
 
-`select(2, UnitClass(unite))` donne le jeton de classe, `Config.parClasse` donne
-la clé. Une unité inexistante ou hors ligne rend `nil`.
+Si le joueur porte une surcharge nominative, c'est elle qui gagne. Sinon,
+`select(2, UnitClass(unite))` donne le jeton de classe, `Config.parClasse`
+donne la clé. Une unité inexistante ou hors ligne rend `nil`.
+
+### Surcharges par joueur
+
+```lua
+GestoBene_Suivi.Surcharger(nom, cle)  -- cle = nil retire la surcharge
+GestoBene_Suivi.Surcharge(nom)
+GestoBene_Suivi.OublierSurcharges()
+```
+
+Posées par les boutons de bascule (section 8), rangées par **nom de joueur** et
+non par unité : `party2` peut changer d'occupant, un nom non. Elles ne
+touchent jamais `GestoBene_Config` et meurent avec la session — le groupe
+change à chaque donjon. Elles restent volontairement hors de `GestoBene_Etat`.
+
+### Supérieure permise
+
+```lua
+GestoBene_Suivi.SuperieurePermise(unite) -- → vrai ou faux
+```
+
+Le jeu applique une supérieure à **tous les membres de la classe ciblée**, et
+elle remplace notre bénédiction sur chacun d'eux. Si un autre porteur de la
+même classe attend une bénédiction différente, la supérieure écraserait son
+choix et ferait virer son carré en `mauvaise`. La fonction rend donc faux dans
+ce cas, et `Cadre.lua` pose alors la normale sur le clic droit. Une classe
+seule dans le groupe, ou unanime, garde la supérieure.
 
 ### Composition du groupe
 
@@ -248,7 +297,7 @@ qu'elle nomme et de cacher les autres.
 |---|---|
 | `vide` | L'unité n'existe pas — solo, ou groupe de moins de cinq |
 | `absente` | Aucune de nos bénédictions sur l'unité |
-| `mauvaise` | Une des nôtres, mais pas celle que la classe commande |
+| `mauvaise` | Une des nôtres, mais pas celle attendue pour ce joueur |
 | `bientot` | La bonne, restant sous `seuilAlerte` |
 | `posee` | La bonne, au-dessus du seuil |
 
@@ -269,11 +318,34 @@ reste visible, celui de Kahalie ; le cadre parent se réduit à sa largeur. Dans
 un groupe de trois, trois carrés. Il n'y a jamais de trou : les carrés visibles
 sont toujours contigus, puisque `party1` à `party4` se remplissent dans l'ordre.
 
-Le cadre parent porte l'ancrage, se déplace à la souris, et redimensionne sa
-largeur sur le nombre de carrés visibles.
+Le cadre parent porte l'ancrage, se déplace à la souris quand le cadenas est
+ouvert, et redimensionne sa largeur sur le nombre de carrés visibles.
 
-Chaque carré porte trois textes : l'abréviation en haut, le temps restant au
-centre, le nom du joueur en dessous.
+Chaque carré porte trois textes : l'abréviation en haut (suivie d'un `+` pour
+une supérieure), le temps restant au centre, le nom du joueur en dessous.
+
+### Boutons ordinaires autour des carrés
+
+Aucun de ces boutons ne lance de sort ; seuls les cinq carrés sont protégés.
+
+- **Bascule** — au-dessus de chaque carré. Elle affiche l'abréviation de la
+  bénédiction choisie pour ce joueur ; un clic passe à la suivante parmi
+  celles que le paladin sait lancer (`Sorts.Suivante`), et pose une surcharge
+  nominative. Revenir sur la valeur de la classe retire la surcharge. Cachée
+  quand il n'y a nulle part où aller.
+- **Cadenas** — à gauche, 20 pixels. Gris sombre et `V` verrouillé, jaune et
+  `L` libre ; ouvert, il sert aussi de poignée.
+- **Compteur de Symboles des rois** — à droite. Vert, orange ou rouge selon
+  `seuilReactifBon` et `seuilReactifFaible`. Il se repeint même en combat : ce
+  n'est qu'un texte.
+
+### Mémoire entre les sessions
+
+La SavedVariables `GestoBene_Etat`, déclarée dans le `.toc`, ne garde que ce
+que l'addon produit lui-même : la position du cadre, mémorisée au relâcher
+d'un glisser, et l'état du cadenas, mémorisé à chaque bascule. Les deux
+l'emportent sur `Config.lua` dès qu'ils existent. Rien d'autre n'y entre — en
+particulier pas les surcharges par joueur.
 
 Créer les cinq carrés d'emblée, puis n'en montrer qu'une partie, est un choix
 délibéré : créer un bouton protégé en combat est impossible, alors que le
@@ -286,7 +358,7 @@ délibéré : créer un bouton protégé en combat est impossible, alors que le
 |---|---|
 | `posee` | Fond vert sombre, texte clair |
 | `bientot` | Bord orange, temps en orange |
-| `absente` | Fond rouge, « MANQUE », clignotement lent (une pulsation par seconde) |
+| `absente` | Fond rouge, « X », clignotement lent (une pulsation par seconde) |
 | `mauvaise` | Fond jaune, abréviation de la bénédiction **réellement portée** |
 | `vide` | Carré caché, cadre parent rétréci |
 | `en attente` | Bordure jaune — voir le verrou de combat |
@@ -305,9 +377,11 @@ carre:SetAttribute("spell2", nomSuperieure)
 
 `RegisterForClicks("AnyUp")`.
 
-Le clic droit ne pose la supérieure que si elle est apprise et qu'il reste un
-symbole. Sinon `spell2` reçoit le nom de la normale : le clic droit se dégrade
-au lieu de ne rien faire.
+Le clic droit ne pose la supérieure que si elle est apprise, qu'il reste un
+symbole, et que `Suivi.SuperieurePermise` l'autorise — aucun autre porteur de
+la même classe n'attend une bénédiction différente. Sinon `spell2` reçoit le
+nom de la normale : le clic droit se dégrade au lieu de ne rien faire, ou de
+casser le choix d'un autre joueur.
 
 L'addon ne vérifie ni la portée, ni la ligne de vue, ni le mana. C'est le rôle
 du jeu, qui refusera le lancement avec son propre message.
@@ -318,7 +392,8 @@ C'est la seule difficulté réelle de l'addon.
 
 Deux opérations sont interdites en combat sur un bouton protégé :
 
-1. **changer ses attributs** — or `spell` dépend de la classe de l'occupant ;
+1. **changer ses attributs** — or `spell` dépend de la bénédiction attendue
+   pour l'occupant ;
 2. **le montrer ou le cacher** — or le nombre de carrés visibles dépend de la
    taille du groupe.
 
@@ -334,15 +409,18 @@ La parade tient dans deux invariants :
   combat ; seule leur visibilité varie.
 
 Ne bougent donc que `spell1` / `spell2` et `Show` / `Hide`, et seulement quand
-la composition du groupe change. Les deux passent par la même file.
+la composition du groupe, les sorts appris, le stock de symboles ou un choix de
+bascule changent. Les deux passent par la même file.
 
 Procédure :
 
-1. `PARTY_MEMBERS_CHANGED`, `SPELLS_CHANGED` ou `BAG_UPDATE` demandent une
-   reprogrammation — attributs et visibilité.
+1. `PARTY_MEMBERS_CHANGED`, `SPELLS_CHANGED`, `BAG_UPDATE` ou un clic sur une
+   bascule demandent une reprogrammation — attributs et visibilité.
 2. Si `InCombatLockdown()` est faux, elle se fait tout de suite.
-3. Sinon, un drapeau `reprogrammationEnAttente` est levé, et les carrés déjà
-   visibles passent en rendu « en attente » (bordure jaune).
+3. Sinon, si l'ensemble visé diffère de ce qui est déjà appliqué, un drapeau
+   `reprogrammationEnAttente` est levé, et les carrés déjà visibles passent en
+   rendu « en attente » (bordure jaune). Un `BAG_UPDATE` de butin qui ne change
+   rien ne lève donc pas le drapeau.
 4. `PLAYER_REGEN_ENABLED` vide la file, repositionne les carrés visibles,
    redimensionne le cadre parent et repeint.
 
@@ -370,7 +448,7 @@ de se mettre à jour normalement en combat.
 | `UNIT_AURA` | Relire la seule unité concernée, si elle est à nous |
 | `SPELLS_CHANGED` | Re-résoudre les sorts appris (niveau, nouveau rang) |
 | `ACTIVE_TALENT_GROUP_CHANGED` | Re-résoudre après un basculement de double spé |
-| `BAG_UPDATE` | Recompter les symboles |
+| `BAG_UPDATE` | Recompter les symboles, repeindre le compteur |
 | `PLAYER_REGEN_ENABLED` | Vider la file de reprogrammation |
 
 `PARTY_MEMBERS_CHANGED` est bien le nom de l'événement en 3.3.5a —
@@ -400,9 +478,13 @@ balayage des auras n'a donc lieu que sur événement.
 `/gesto` est la commande principale ; `/ben` est un alias court, plus rapide à
 taper en jeu.
 
-`/gesto pos` est la contrepartie du choix « sans SavedVariables » : le cadre se
-déplace à la souris, mais la position ne survit pas au rechargement tant qu'elle
-n'est pas recopiée dans le fichier. C'est explicite et assumé.
+`/gesto pos` servait à l'origine à recopier la position dans `Config.lua`,
+faute de SavedVariables. Depuis que `GestoBene_Etat` mémorise la position, ce
+n'est plus nécessaire ; la commande reste utile pour fixer l'ancrage de départ
+d'une nouvelle installation.
+
+`/gesto etat` montre la bénédiction attendue, surcharge comprise : on y voit qui
+est dévié de la règle de classe.
 
 ## 11. Tests
 
@@ -415,8 +497,8 @@ tests/
 └── tests.lua             les cas, lancés par « lua tests.lua »
 ```
 
-Le faux couvre `UnitBuff`, `UnitClass`, `UnitExists`, `GetSpellInfo`, `GetTime`,
-`GetItemCount`. Il est piloté par une table décrivant le groupe et les buffs,
+Le faux couvre `UnitBuff`, `UnitClass`, `UnitExists`, `UnitName`,
+`GetSpellInfo`, `GetTime`, `GetItemCount`, `GetItemInfo`. Il est piloté par une table décrivant le groupe et les buffs,
 pour qu'un cas de test tienne en quelques lignes.
 
 ### Cas couverts
@@ -443,6 +525,15 @@ Sur `Suivi.lua` :
     cet ordre et sans trou.
 15. Un membre hors ligne reste dans `Membres()` : son carré s'affiche, à l'état
     `absente`, plutôt que de faire glisser les autres.
+16. Une surcharge nominative l'emporte sur la classe, et deux joueurs de même
+    classe peuvent diverger.
+17. Une supérieure est refusée quand deux porteurs de même classe attendent des
+    bénédictions différentes, permise quand la classe est unanime ou seule.
+18. Une bénédiction est reconnue par son nom quel que soit son rang, et la
+    supérieure est distinguée de la normale.
+
+Cette liste donne les familles de cas ; `lua tests.lua` en compte 64 au
+2026-09-28.
 
 `Cadre.lua` et `GestoBene.lua` ne sont pas couverts : ils touchent l'API
 graphique et le système d'événements, qu'on ne simule pas raisonnablement.
@@ -459,6 +550,8 @@ Une fois les tests au vert, la recette manuelle tient en sept points :
 3. `/gesto sorts` montre des identifiants valides.
 4. Un clic gauche pose la bonne bénédiction et le décompte démarre.
 5. Un clic droit pose la supérieure et consomme un symbole.
+   Avec deux joueurs de même classe basculés sur des bénédictions
+   différentes, il pose la normale et le carré de l'autre ne change pas.
 6. **Entrer en groupe hors combat fait apparaître les carrés manquants** et
    élargit le cadre.
 7. Entrer en combat après un changement de groupe affiche la bordure jaune sans
@@ -472,8 +565,8 @@ Retiré volontairement, faute d'usage établi :
 - Bénédiction automatique sans clic.
 - Coordination entre plusieurs paladins.
 - Raid à 40, et donc plus de cinq carrés.
-- Exceptions par rôle ou par nom de joueur — écartées au profit de la table par
-  classe, qui suffit en donjon 5.
+- Exceptions par rôle — la bascule par nom de joueur, ajoutée depuis, couvre
+  le besoin en donjon 5.
 
 ## 13. Risques
 
@@ -484,4 +577,5 @@ Retiré volontairement, faute d'usage établi :
 | Changement de groupe en combat | Rendu « en attente », reprogrammation différée à `PLAYER_REGEN_ENABLED` |
 | `Show` / `Hide` interdits en combat sur un bouton protégé | Les cinq carrés sont créés hors combat une fois pour toutes ; seule leur visibilité varie, par la même file d'attente |
 | `UnitBuff` muet sur une unité hors de portée | Pas de rebasculement en `absente` : le carré garde son dernier état connu, `Cadre.Rafraichir` continue le décompte depuis l'expiration mémorisée sans relire de buff, jusqu'au prochain `UNIT_AURA` qui, lui, dira la vérité |
-| Le dossier du client n'est pas sous git | La spec et l'addon ne sont pas versionnés ; accepté pour ce projet |
+| Une supérieure écrase la bénédiction d'un autre joueur de la même classe | `Suivi.SuperieurePermise` fait retomber le clic droit sur la normale |
+| Le dossier du client n'est pas sous git | L'addon vit dans ce dépôt ; `installer.sh` le recopie dans le client |
