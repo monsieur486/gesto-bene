@@ -4,13 +4,15 @@
 -- au-dessus de chaque carré, une bascule qui fait défiler les bénédictions
 -- que ce joueur sait lancer. Un simple texte s'y ajoute aussi, à droite : le
 -- compteur de Symboles des rois. Aucun d'eux ne lance de sort ; seuls les
--- cinq carrés sont protégés.
+-- cinq carrés sont protégés, ainsi que la barre de sceau sous le carré du
+-- joueur, qui lance le sceau choisi.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
 
 -- SavedVariables : uniquement ce que l'addon produit lui-même, la position
--- du cadre et l'état du cadenas. Rien d'autre — en particulier pas les
+-- du cadre, l'état du cadenas et le sceau choisi au clic droit (écrit par
+-- GestoBene_Suivi.ChoisirSceau). Rien d'autre — en particulier pas les
 -- surcharges par joueur de GestoBene_Suivi, qui doivent continuer de mourir
 -- avec la session. Créée vide ici même à la première installation ou si le
 -- fichier a été effacé, au cas où l'événement PLAYER_LOGIN de GestoBene.lua
@@ -45,6 +47,14 @@ local TAILLE_COMPTEUR_REACTIF = 20
 -- Écart entre le dernier carré et le compteur, symétrique d'ECART_CADENAS de
 -- l'autre côté.
 local ECART_COMPTEUR_REACTIF = 4
+
+-- Hauteur de la barre de sceau, de la largeur d'un carré : assez pour une
+-- ligne de texte, sans rivaliser avec les carrés de bénédiction.
+local HAUTEUR_SCEAU = 18
+
+-- Distance entre le bas du carré du joueur et la barre de sceau : le nom du
+-- joueur occupe cet espace, sous le carré.
+local ECART_SCEAU = 14
 
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
 -- entier déborde d'un carré de 48 pixels, et le fond rouge qui pulse dit déjà
@@ -85,6 +95,11 @@ local constructionEnAttente = false
 -- ordinaires : les créer, les montrer, les cacher ou les cliquer en combat
 -- est licite, contrairement aux cinq carrés.
 local cadenas, boutonsBascule, compteurReactif = nil, {}, nil
+
+-- La barre de sceau, sous le carré du joueur. Bouton protégé : clic gauche,
+-- le sceau choisi ; clic droit, aucune action protégée, seulement le
+-- passage au sceau suivant (voir CreerSceau).
+local sceau = nil
 
 -- État du verrou pendant la session. GestoBene_Config doit rester en
 -- lecture seule — c'est la règle qui garantit que ce que l'utilisateur lit
@@ -278,6 +293,68 @@ local function CreerCompteurReactif()
   return compteur
 end
 
+-- La barre de sceau, sous le carré du joueur et son nom. Le joueur existe
+-- toujours : elle est montrée une fois pour toutes et suit le cadre parent,
+-- sans jamais avoir à se montrer ou se cacher en combat.
+--
+-- Seul « type1 » est posé : le clic droit ne déclenche aucune action
+-- protégée, et PostClick en profite pour faire avancer le choix du sceau.
+-- Ce choix est une donnée ordinaire, licite en combat ; seul le nouveau nom
+-- de sort dans « spell1 » devra attendre, ce que Reprogrammer sait différer.
+local function CreerSceau()
+  local carreJoueur = carres.player
+  local bouton = CreateFrame("Button", "GestoBeneSceau", parent,
+                             "SecureActionButtonTemplate")
+  bouton:SetWidth(GestoBene_Config.tailleCarre)
+  bouton:SetHeight(HAUTEUR_SCEAU)
+  bouton:SetPoint("TOP", carreJoueur, "BOTTOM", 0, -ECART_SCEAU)
+  bouton:RegisterForClicks("AnyUp")
+  bouton:SetAttribute("unit", "player")
+  bouton:SetAttribute("type1", "spell")
+
+  bouton.fond = bouton:CreateTexture(nil, "BACKGROUND")
+  bouton.fond:SetAllPoints(bouton)
+  bouton.fond:SetTexture(0, 0, 0, 0.8)
+
+  bouton.bordure = CreateFrame("Frame", nil, bouton)
+  bouton.bordure:SetAllPoints(bouton)
+  bouton.bordure:SetBackdrop({
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8,
+  })
+  bouton.bordure:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+  bouton.texte = bouton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  bouton.texte:SetPoint("CENTER", bouton, "CENTER", 0, 0)
+
+  bouton:SetScript("PostClick", function(self, clic)
+    if clic ~= "RightButton" then return end
+    local suivant = GestoBene_Sorts.SceauSuivant(GestoBene_Suivi.SceauChoisi())
+    if not suivant then return end
+    GestoBene_Suivi.ChoisirSceau(suivant)
+    Cadre.Reprogrammer()
+    -- Repeint tout de suite, même si Reprogrammer a dû différer en combat :
+    -- la barre montre le nouveau choix, face au sceau réellement porté.
+    Cadre.PeindreSceau()
+  end)
+
+  bouton:SetScript("OnEnter", function(self)
+    local choisi = GestoBene_Suivi.SceauChoisi()
+    local suivant = GestoBene_Sorts.SceauSuivant(choisi)
+    local etatChoisi = GestoBene_Sorts.EtatSceau(choisi)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText(etatChoisi and etatChoisi.nom or choisi)
+    GameTooltip:AddLine("Clic gauche : lancer", 1, 1, 1)
+    if suivant then
+      local etatSuivant = GestoBene_Sorts.EtatSceau(suivant)
+      GameTooltip:AddLine("Clic droit : passer a " .. (etatSuivant and etatSuivant.nom or suivant), 1, 1, 1)
+    end
+    GameTooltip:Show()
+  end)
+  bouton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  return bouton
+end
+
 -- Un bouton de bascule par carré, créé avec lui, qu'il serve un jour ou
 -- jamais : les bénédictions que sait lancer l'occupant peuvent changer à
 -- chaque montée de niveau ou changement de spécialisation, alors qu'un
@@ -460,6 +537,8 @@ function Cadre.Construire()
     boutonsBascule[unite] = CreerBoutonBascule(unite, carre)
   end
 
+  sceau = CreerSceau()
+
   cadenas = CreerCadenas()
   compteurReactif = CreerCompteurReactif()
 
@@ -508,6 +587,12 @@ local function CalculerVise()
       vise[unite] = { visible = false }
     end
   end
+  -- La barre de sceau entre dans la même comparaison que les carrés : un
+  -- changement de sceau en combat doit lever le drapeau d'attente.
+  vise.sceau = {
+    visible = true,
+    spell1 = GestoBene_Sorts.NomSceau(GestoBene_Suivi.SceauChoisi()),
+  }
   return vise, membres
 end
 
@@ -575,6 +660,7 @@ function Cadre.Reprogrammer()
         carre.bordure:SetBackdropBorderColor(0.6, 0.6, 0.2, 1)
       end
     end
+    sceau.bordure:SetBackdropBorderColor(0.6, 0.6, 0.2, 1)
     return
   end
 
@@ -589,6 +675,7 @@ function Cadre.Reprogrammer()
       carre:Hide()
     end
   end
+  sceau:SetAttribute("spell1", vise.sceau.spell1)
   dernierApplique = vise
 
   Disposer(membres)
@@ -646,11 +733,62 @@ function Cadre.PeindreUnite(unite)
   end
 end
 
+-- Lit le sceau porté et peint la barre, sur le modèle de PeindreUnite :
+-- l'état est mémorisé pour que Rafraichir fasse avancer le décompte.
+function Cadre.PeindreSceau()
+  if not sceau then return end
+
+  local etat = GestoBene_Suivi.EtatSceau()
+  sceau.cache = etat
+
+  if etat.etat == "absente" then
+    sceau.fond:SetTexture(unpack(COULEURS.absente))
+    sceau.texte:SetText(GestoBene_Sorts.AbregerSceau(etat.cle) .. " " .. TEXTE_ABSENTE)
+  else
+    -- Comme sur les carrés, l'abréviation suit le sceau réellement porté,
+    -- celui dont le décompte s'affiche.
+    etat.abreviation = GestoBene_Sorts.AbregerSceau(etat.clePortee)
+    sceau.fond:SetTexture(unpack(COULEURS[etat.etat]))
+    sceau.texte:SetText(etat.abreviation .. " " .. FormaterTemps(etat.restant))
+  end
+
+  if not reprogrammationEnAttente then
+    sceau.bordure:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+  end
+end
+
 function Cadre.Peindre()
   if not parent then return end
   for _, unite in ipairs(GestoBene_Suivi.Membres()) do
     Cadre.PeindreUnite(unite)
   end
+  Cadre.PeindreSceau()
+end
+
+-- Pulsation du fond rouge d'un buff manquant : l'alpha va et vient entre
+-- 0,45 et 0,90 en une seconde.
+local function Pulser(fond, maintenant)
+  local phase = maintenant % 1
+  local alpha = 0.45 + 0.45 * math.abs(1 - 2 * phase)
+  local r, v, b = COULEURS.absente[1], COULEURS.absente[2], COULEURS.absente[3]
+  fond:SetTexture(r, v, b, alpha)
+end
+
+-- Le restant depuis l'expiration mémorisée, et le passage du seuil d'alerte
+-- quand le buff attendu est bien celui porté. Rend le restant.
+local function Decompter(etat, fond, maintenant)
+  local restant = etat.expiration - maintenant
+  if restant < 0 then restant = 0 end
+
+  if etat.etat ~= "mauvaise" then
+    local nouveau = "posee"
+    if restant < GestoBene_Config.seuilAlerte then nouveau = "bientot" end
+    if nouveau ~= etat.etat then
+      etat.etat = nouveau
+      fond:SetTexture(unpack(COULEURS[nouveau]))
+    end
+  end
+  return restant
 end
 
 -- Avance l'affichage sans lire un seul buff : le décompte se recalcule depuis
@@ -665,28 +803,22 @@ function Cadre.Rafraichir()
     if carre:IsShown() and etat then
 
       if etat.etat == "absente" then
-        -- Pulsation : l'alpha va et vient entre 0,45 et 0,90 en une seconde.
-        local phase = maintenant % 1
-        local alpha = 0.45 + 0.45 * math.abs(1 - 2 * phase)
-        local r, v, b = COULEURS.absente[1], COULEURS.absente[2], COULEURS.absente[3]
-        carre.fond:SetTexture(r, v, b, alpha)
-
+        Pulser(carre.fond, maintenant)
       elseif etat.expiration then
-        local restant = etat.expiration - maintenant
-        if restant < 0 then restant = 0 end
-        carre.temps:SetText(FormaterTemps(restant))
-
         -- Le franchissement du seuil se voit sans relire le buff.
-        if etat.etat ~= "mauvaise" then
-          local nouveau = "posee"
-          if restant < GestoBene_Config.seuilAlerte then nouveau = "bientot" end
-          if nouveau ~= etat.etat then
-            etat.etat = nouveau
-            carre.fond:SetTexture(unpack(COULEURS[nouveau]))
-          end
-        end
+        carre.temps:SetText(FormaterTemps(Decompter(etat, carre.fond, maintenant)))
       end
 
+    end
+  end
+
+  local etat = sceau.cache
+  if etat then
+    if etat.etat == "absente" then
+      Pulser(sceau.fond, maintenant)
+    elseif etat.expiration then
+      local restant = Decompter(etat, sceau.fond, maintenant)
+      sceau.texte:SetText(etat.abreviation .. " " .. FormaterTemps(restant))
     end
   end
 end

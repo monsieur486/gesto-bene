@@ -751,6 +751,131 @@ Test("un membre hors ligne garde son carre", function()
   FauxAPI.Reinitialiser()
 end)
 
+-- Sceaux : Kahalie connaît Piété, Sagesse, Lumière et Justice, pas
+-- Commandement (talent de Vindicte non pris). Vengeance est la version
+-- Alliance ; Corruption, celle de la Horde, existe mais reste inconnue.
+local function MondeSceaux()
+  local monde = MondeKahalie55()
+  monde.sortsExistants[21084] = "Sceau de piété"
+  monde.sortsExistants[20166] = "Sceau de sagesse"
+  monde.sortsExistants[20165] = "Sceau de lumière"
+  monde.sortsExistants[20164] = "Sceau de justice"
+  monde.sortsExistants[20375] = "Sceau d'autorité"
+  monde.sortsExistants[31801] = "Sceau de vengeance"
+  monde.sortsExistants[53736] = "Sceau de corruption"
+  for _, id in ipairs({ 21084, 20166, 20165, 20164, 31801 }) do
+    monde.sortsConnus[id] = true
+  end
+  monde.unites = { player = { classe = "PALADIN", nom = "Kahalie" } }
+  monde.buffs = { player = {} }
+  return monde
+end
+
+local function ChargerSceaux(monde)
+  ChargerSuivi(monde)
+  -- La SavedVariables d'une première connexion : rien de mémorisé.
+  GestoBene_Etat = {}
+end
+
+Test("les sceaux appris sont lancables dans l ordre du cycle", function()
+  ChargerSceaux(MondeSceaux())
+  local lancables = GestoBene_Sorts.SceauxLancables()
+  AssertEgal(table.concat(lancables, ","), "Piete,Sagesse,Lumiere,Justice,Vengeance", "cycle")
+  AssertEgal(GestoBene_Sorts.NomSceau("Sagesse"), "Sceau de sagesse", "nom a poser")
+  AssertNil(GestoBene_Sorts.NomSceau("Commandement"), "sceau non appris")
+end)
+
+Test("SceauSuivant avance, boucle et saute les sceaux inconnus", function()
+  ChargerSceaux(MondeSceaux())
+  AssertEgal(GestoBene_Sorts.SceauSuivant("Sagesse"), "Lumiere", "avance")
+  AssertEgal(GestoBene_Sorts.SceauSuivant("Justice"), "Vengeance", "saute Commandement")
+  AssertEgal(GestoBene_Sorts.SceauSuivant("Vengeance"), "Piete", "boucle")
+  AssertEgal(GestoBene_Sorts.SceauSuivant("Corruption"), "Piete", "inconnu repart du debut")
+end)
+
+Test("les abreviations de sceau font trois lettres", function()
+  ChargerSceaux(MondeSceaux())
+  for _, cle in ipairs(GestoBene_Sorts.ORDRE_SCEAUX) do
+    AssertEgal(#GestoBene_Sorts.AbregerSceau(cle), 3, cle)
+  end
+end)
+
+Test("un sceau mal configure tombe sur Sagesse avec un avertissement", function()
+  ChargerSceaux(MondeSceaux())
+  GestoBene_Config.sceau = "Croisade"
+  local avertissements = GestoBene_Sorts.ValiderConfig()
+  AssertEgal(#avertissements, 1, "un avertissement")
+  AssertEgal(GestoBene_Config.sceau, "Sagesse", "repli")
+end)
+
+Test("sans choix memorise le sceau suivi est celui de Config", function()
+  ChargerSceaux(MondeSceaux())
+  AssertEgal(GestoBene_Suivi.SceauChoisi(), "Sagesse", "defaut")
+end)
+
+Test("un choix memorise l emporte et revenir au defaut l efface", function()
+  ChargerSceaux(MondeSceaux())
+  GestoBene_Suivi.ChoisirSceau("Lumiere")
+  AssertEgal(GestoBene_Etat.sceau, "Lumiere", "memorise pour le /reload")
+  AssertEgal(GestoBene_Suivi.SceauChoisi(), "Lumiere", "choix")
+  GestoBene_Suivi.ChoisirSceau("Sagesse")
+  AssertNil(GestoBene_Etat.sceau, "Config reprend la main")
+end)
+
+Test("un choix memorise inconnu est ignore", function()
+  ChargerSceaux(MondeSceaux())
+  GestoBene_Etat.sceau = "Croisade"
+  AssertEgal(GestoBene_Suivi.SceauChoisi(), "Sagesse", "repli sur Config")
+end)
+
+Test("sans sceau actif la barre signale le manque", function()
+  ChargerSceaux(MondeSceaux())
+  local etat = GestoBene_Suivi.EtatSceau()
+  AssertEgal(etat.etat, "absente", "etat")
+  AssertEgal(etat.cle, "Sagesse", "sceau attendu")
+end)
+
+Test("le sceau choisi pose donne son decompte", function()
+  local monde = MondeSceaux()
+  monde.buffs.player = { { spellId = 20166, duree = 1800, expiration = 2500, lanceur = "player" } }
+  ChargerSceaux(monde)
+  local etat = GestoBene_Suivi.EtatSceau()
+  AssertEgal(etat.etat, "posee", "etat")
+  AssertEgal(etat.restant, 1500, "restant")
+  AssertEgal(etat.expiration, 2500, "expiration")
+end)
+
+Test("un sceau qui expire passe en alerte", function()
+  local monde = MondeSceaux()
+  monde.buffs.player = { { spellId = 20166, duree = 1800, expiration = 1030, lanceur = "player" } }
+  ChargerSceaux(monde)
+  AssertEgal(GestoBene_Suivi.EtatSceau().etat, "bientot", "sous le seuil")
+end)
+
+Test("un autre sceau que le choisi est signale comme mauvais", function()
+  local monde = MondeSceaux()
+  monde.buffs.player = { { spellId = 20165, duree = 1800, expiration = 2500, lanceur = "player" } }
+  ChargerSceaux(monde)
+  local etat = GestoBene_Suivi.EtatSceau()
+  AssertEgal(etat.etat, "mauvaise", "etat")
+  AssertEgal(etat.clePortee, "Lumiere", "sceau porte")
+end)
+
+-- Sagesse est à la fois un sceau et une bénédiction : l'un ne doit pas
+-- passer pour l'autre, ni sur la barre ni sur le carré.
+Test("la benediction de sagesse ne passe pas pour le sceau et inversement", function()
+  local monde = MondeSceaux()
+  monde.buffs.player = { { spellId = 19742, duree = 600, expiration = 1500, lanceur = "player" } }
+  ChargerSceaux(monde)
+  AssertEgal(GestoBene_Suivi.EtatSceau().etat, "absente", "benediction seule")
+  AssertEgal(GestoBene_Suivi.Etat("player").etat, "posee", "le carre la voit")
+
+  monde.buffs.player = { { spellId = 20166, duree = 1800, expiration = 2500, lanceur = "player" } }
+  ChargerSceaux(monde)
+  AssertEgal(GestoBene_Suivi.EtatSceau().etat, "posee", "sceau seul")
+  AssertEgal(GestoBene_Suivi.Etat("player").etat, "absente", "le carre ne le prend pas")
+end)
+
 function LancerTests()
   for _, c in ipairs(cas) do
     local ok, err = pcall(c.fonction)

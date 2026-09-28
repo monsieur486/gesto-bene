@@ -24,7 +24,16 @@ GestoBene_Config = {
     DRUID       = "Rois",
   },
 
+  -- Le sceau suivi par la barre sous ton propre carré.
+  -- Valeurs admises : "Piete", "Sagesse", "Lumiere", "Justice",
+  -- "Commandement", "Vengeance", "Corruption"
+  -- Le clic droit sur la barre passe au sceau suivant parmi ceux que tu
+  -- connais ; ce choix est mémorisé dans GestoBene_Etat et l'emporte ensuite
+  -- sur cette valeur, qui ne sert qu'à la toute première connexion.
+  sceau = "Sagesse",
+
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
+  -- La barre de sceau suit le même seuil.
   seuilAlerte = 60,
 
   -- Seuils du compteur de Symboles des rois (le réactif des bénédictions

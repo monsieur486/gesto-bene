@@ -79,11 +79,13 @@ function Suivi.SuperieurePermise(unite)
   return true
 end
 
--- Notre bénédiction sur cette unité, s'il y en a une.
+-- Notre premier buff sur cette unité que « reconnaitre » identifie : cette
+-- fonction reçoit le nom localisé du buff et rend sa clé, ou nil. Rend
+-- { cle, nom, restant, duree, expiration }, ou nil.
 -- Le filtre sur le lanceur est essentiel : la bénédiction d'un autre paladin
 -- ne doit pas faire croire que le travail est fait, puisqu'on ne peut pas
 -- la rafraîchir.
-function Suivi.LireUnite(unite)
+local function ChercherNotreBuff(unite, reconnaitre)
   if not UnitExists(unite) then return nil end
   local index = 1
   while true do
@@ -93,7 +95,7 @@ function Suivi.LireUnite(unite)
       -- Le nom, pas le spellId : la plupart des bénédictions ont une
       -- dizaine de rangs, chacun son propre identifiant, alors que UnitBuff
       -- rend le même nom localisé quel que soit le rang lancé.
-      local cle = GestoBene_Sorts.CleParNom(nom)
+      local cle = reconnaitre(nom)
       if cle then
         local restant
         if expiration and expiration > 0 then
@@ -102,14 +104,42 @@ function Suivi.LireUnite(unite)
         end
         -- Une expiration nulle signifie une durée indéterminée : restant vaut nil.
         local fin = (expiration and expiration > 0) and expiration or nil
-        return {
-          cle = cle, restant = restant, duree = duree, expiration = fin,
-          superieure = GestoBene_Sorts.EstSuperieureParNom(nom),
-        }
+        return { cle = cle, nom = nom, restant = restant, duree = duree, expiration = fin }
       end
     end
     index = index + 1
   end
+end
+
+-- Notre bénédiction sur cette unité, s'il y en a une.
+function Suivi.LireUnite(unite)
+  local portee = ChercherNotreBuff(unite, GestoBene_Sorts.CleParNom)
+  if not portee then return nil end
+  portee.superieure = GestoBene_Sorts.EstSuperieureParNom(portee.nom)
+  portee.nom = nil
+  return portee
+end
+
+-- L'état d'un buff attendu face à celui réellement porté, sans le nom du
+-- joueur : partagé par les carrés et la barre de sceau.
+local function Qualifier(attendue, portee)
+  if not portee then
+    return { etat = "absente", cle = attendue }
+  end
+
+  local etat = "mauvaise"
+  if portee.cle == attendue then
+    etat = "posee"
+    if portee.restant and portee.restant < GestoBene_Config.seuilAlerte then
+      etat = "bientot"
+    end
+  end
+
+  return {
+    etat = etat, cle = attendue, clePortee = portee.cle,
+    restant = portee.restant, expiration = portee.expiration,
+    superieure = portee.superieure,
+  }
 end
 
 -- L'état d'un carré, tel que Cadre.lua le peindra sans rien décider.
@@ -118,30 +148,38 @@ function Suivi.Etat(unite)
     return { etat = "vide" }
   end
 
-  local attendue = Suivi.Attendue(unite)
-  local nom = UnitName(unite)
-  local portee = Suivi.LireUnite(unite)
+  local etat = Qualifier(Suivi.Attendue(unite), Suivi.LireUnite(unite))
+  etat.nom = UnitName(unite)
+  return etat
+end
 
-  if not portee then
-    return { etat = "absente", cle = attendue, nom = nom }
+-- Le sceau suivi : celui choisi au clic droit, mémorisé dans GestoBene_Etat,
+-- sinon celui de Config.lua. Un choix mémorisé que la table ne connaît plus
+-- (fichier retouché à la main, sceau retiré d'une version) est ignoré.
+-- GestoBene_Etat est créée par Cadre.lua ; on la lit prudemment pour que ce
+-- fichier reste chargeable seul, dans les tests.
+function Suivi.SceauChoisi()
+  local memorise = GestoBene_Etat and GestoBene_Etat.sceau
+  if memorise and GestoBene_Sorts.sceaux[memorise] then
+    return memorise
   end
+  return GestoBene_Config.sceau
+end
 
-  if portee.cle ~= attendue then
-    return {
-      etat = "mauvaise", cle = attendue, clePortee = portee.cle,
-      restant = portee.restant, expiration = portee.expiration, nom = nom,
-      superieure = portee.superieure,
-    }
+-- Mémorise le sceau choisi. Revenir sur celui de Config.lua efface la
+-- mémoire plutôt que d'en poser une identique : la configuration reprend
+-- alors la main, comme les bascules de bénédiction avec parClasse.
+function Suivi.ChoisirSceau(cle)
+  GestoBene_Etat = GestoBene_Etat or {}
+  if cle == GestoBene_Config.sceau then
+    GestoBene_Etat.sceau = nil
+  else
+    GestoBene_Etat.sceau = cle
   end
+end
 
-  local etat = "posee"
-  if portee.restant and portee.restant < GestoBene_Config.seuilAlerte then
-    etat = "bientot"
-  end
-
-  return {
-    etat = etat, cle = attendue, clePortee = portee.cle,
-    restant = portee.restant, expiration = portee.expiration, nom = nom,
-    superieure = portee.superieure,
-  }
+-- L'état de la barre de sceau, sur le modèle de Suivi.Etat : le sceau est un
+-- buff que le paladin ne pose que sur lui-même.
+function Suivi.EtatSceau()
+  return Qualifier(Suivi.SceauChoisi(), ChercherNotreBuff("player", GestoBene_Sorts.SceauParNom))
 end

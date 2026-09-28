@@ -99,6 +99,8 @@ ecouteur:SetScript("OnEvent", function(self, evenement, arg1)
 
   elseif evenement == "UNIT_AURA" then
     GestoBene_Cadre.PeindreUnite(arg1)
+    -- Le sceau est un buff du joueur : il ne change qu'avec ses auras.
+    if arg1 == "player" then GestoBene_Cadre.PeindreSceau() end
 
   elseif evenement == "PLAYER_REGEN_ENABLED" then
     GestoBene_Cadre.ViderFile()
