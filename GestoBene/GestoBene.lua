@@ -9,7 +9,7 @@ local function Dire(message)
   DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99GestoBene|r : " .. message)
 end
 
--- « /gesto sorts » : reproduit le relevé des identifiants, pour refaire le point
+-- « /gesto sorts » : reproduit le relevé des identifiants, sceaux compris, pour refaire le point
 -- après un niveau ou un changement de spécialisation.
 local function ImprimerSorts()
   for cle in pairs(GestoBene_Sorts.table) do
@@ -23,6 +23,15 @@ local function ImprimerSorts()
         etat.normaleApprise and "appris" or "non appris",
         etat.nomSuperieure or "INCONNU",
         etat.superieureApprise and "appris" or "non appris"))
+    end
+  end
+  for _, cle in ipairs(GestoBene_Sorts.ORDRE_SCEAUX) do
+    local etat = GestoBene_Sorts.EtatSceau(cle)
+    if not etat then
+      Dire("sceau " .. cle .. " : absent de ce client")
+    else
+      Dire(string.format("sceau %s : %s [%s]", cle, etat.nom,
+        etat.appris and "appris" or "non appris"))
     end
   end
   Dire(string.format("reactif : %d en sac", GetItemCount(GestoBene_Sorts.reactif)))
