@@ -10,7 +10,7 @@ Suivre les bénédictions du groupe en donjon 5 joueurs. Un carré par membre
 présent — cinq en groupe complet, **un seul en solo**. Chaque carré montre la
 bénédiction attendue pour ce membre, le temps qu'il lui reste, et alerte quand
 elle manque ou expire bientôt. Un clic sur un carré lance la bénédiction.
-Sous le carré du paladin, une barre suit de la même façon son propre sceau.
+Sous le carré du paladin, un carré de sceau suit de la même façon son propre sceau.
 
 L'addon ne décide rien : il montre l'état et sert de bouton. La table des
 classes est écrite à la main dans un fichier, hors du jeu ; un bouton au-dessus
@@ -26,7 +26,7 @@ de chaque carré permet d'y déroger pour un joueur, le temps de la session.
 | Effet du clic sur un carré | Lancer la bénédiction prévue, jamais la changer | Changer de bénédiction passe par le bouton de bascule, pas par le carré |
 | Supérieure quand la classe diverge | Le clic droit pose la normale | Une supérieure touche toute la classe et écraserait le choix de l'autre joueur |
 | Stockage des réglages | `Config.lua` en lecture seule ; `GestoBene_Etat` pour la position, le cadenas et le sceau choisi | Éditable hors du jeu ; seul ce que l'addon produit lui-même est mémorisé |
-| Changer de sceau | Clic droit sur la barre de sceau | Le sceau n'a pas de supérieure : le clic droit est libre, et évite un bouton de plus |
+| Changer de sceau | Clic droit sur le carré de sceau | Le sceau n'a pas de supérieure : le clic droit est libre, et évite un bouton de plus |
 | Groupe incomplet ou solo | Les carrés sans occupant sont **cachés**, pas grisés | En solo l'addon se réduit à un seul carré, celui de Kahalie |
 
 ## 3. Terrain vérifié
@@ -57,7 +57,7 @@ GestoBene/
 │                         surcharges par joueur, sceau choisi              [pur]
 ├── Cadre.lua             les cinq carrés, boutons sécurisés, couleurs,
 │                         bascules, cadenas, compteur de symboles,
-│                         barre de sceau
+│                         carré de sceau
 └── GestoBene.lua      événements, commandes /gesto (alias /ben)
 ```
 
@@ -357,16 +357,17 @@ ouvert, et redimensionne sa largeur sur le nombre de carrés visibles.
 Chaque carré porte trois textes : l'abréviation en haut (suivie d'un `+` pour
 une supérieure), le temps restant au centre, le nom du joueur en dessous.
 
-### Barre de sceau
+### Carré de sceau
 
-Sous le carré du paladin et son nom, une barre de la largeur d'un carré et de
-18 pixels de haut affiche l'abréviation et le temps restant, par exemple
-`SAG 29:12`, avec les couleurs des carrés. C'est un
+Sous le carré du paladin et son nom, un carré de même taille affiche sur deux
+lignes l'abréviation du sceau en haut et le temps restant au centre, avec les
+couleurs des carrés. Une première version tenait sur une barre de 18 pixels
+et une seule ligne, `SAG 29:12` : trop tassée dans 48 pixels de large. C'est un
 `SecureActionButtonTemplate` à l'unité `player`. Seul `type1` est posé : le
 clic gauche lance le sceau choisi. Le clic droit ne déclenche donc aucune
 action protégée ; `PostClick` passe au sceau suivant, repeint aussitôt et
-appelle `Reprogrammer`. Le joueur existant toujours, la barre ne se montre ni
-ne se cache jamais : elle suit le cadre parent.
+appelle `Reprogrammer`. Le joueur existant toujours, ce carré ne se montre ni
+ne se cache jamais : il suit le cadre parent.
 
 ### Boutons ordinaires autour des carrés
 
@@ -489,7 +490,7 @@ de se mettre à jour normalement en combat.
 | `PLAYER_LOGIN` | Construire les carrés, résoudre les sorts, premier rendu |
 | `PLAYER_ENTERING_WORLD` | Relire le groupe entier |
 | `PARTY_MEMBERS_CHANGED` | Reprogrammer les attributs, relire le groupe |
-| `UNIT_AURA` | Relire la seule unité concernée, si elle est à nous ; pour `player`, repeindre aussi la barre de sceau |
+| `UNIT_AURA` | Relire la seule unité concernée, si elle est à nous ; pour `player`, repeindre aussi le carré de sceau |
 | `SPELLS_CHANGED` | Re-résoudre les sorts appris (niveau, nouveau rang) |
 | `ACTIVE_TALENT_GROUP_CHANGED` | Re-résoudre après un basculement de double spé |
 | `BAG_UPDATE` | Recompter les symboles, repeindre le compteur |
@@ -578,7 +579,7 @@ Sur `Suivi.lua` :
 19. Le cycle des sceaux ne passe que par les sceaux appris ; un sceau mal
     configuré tombe sur Sagesse.
 20. Le sceau choisi vient de `GestoBene_Etat` s'il est connu, sinon de
-    `Config` ; la barre rend `absente`, `posee`, `bientot` ou `mauvaise`, et
+    `Config` ; le carré de sceau rend `absente`, `posee`, `bientot` ou `mauvaise`, et
     ni le sceau ni la bénédiction de sagesse ne passent l'un pour l'autre.
 
 Cette liste donne les familles de cas ; `lua tests.lua` en compte 76 au
@@ -605,9 +606,9 @@ Une fois les tests au vert, la recette manuelle tient en huit points :
    élargit le cadre.
 7. Entrer en combat après un changement de groupe affiche la bordure jaune sans
    provoquer d'erreur Lua, et le rendu se corrige à la fin du combat.
-8. La barre de sceau décompte le sceau posé ; un clic droit passe au suivant et
+8. Le carré de sceau décompte le sceau posé ; un clic droit passe au suivant et
    le choix survit au `/reload`. En combat, le clic droit change l'affichage
-   tout de suite, borde la barre de jaune, et le clic gauche lance le nouveau
+   tout de suite, le borde de jaune, et le clic gauche lance le nouveau
    sceau à la fin du combat.
 
 ## 12. Hors périmètre

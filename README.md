@@ -23,10 +23,10 @@ normale, qui ne touche que la cible : la supérieure écraserait le choix de
 l'autre. Il la pose aussi faute de supérieure apprise ou de Symbole des rois
 en sac.
 
-Sous ton propre carré, une barre suit ton sceau (Sagesse par défaut), avec
-les mêmes couleurs que les carrés. Un clic gauche le lance ; un clic droit
+Sous ton propre carré, un second carré suit ton sceau (Sagesse par défaut),
+avec la même présentation et les mêmes couleurs. Un clic gauche le lance ; un clic droit
 passe au sceau suivant parmi ceux que tu connais. Ce choix est mémorisé et
-survit au `/reload`. En combat, la barre affiche tout de suite le nouveau choix,
+survit au `/reload`. En combat, ce carré affiche tout de suite le nouveau choix,
 mais son clic gauche lance encore l'ancien sceau jusqu'à la fin du combat.
 
 Le cadenas à gauche des carrés verrouille ou libère le déplacement du cadre.
