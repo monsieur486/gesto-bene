@@ -35,7 +35,9 @@ GestoBene_Config = {
   seuilReactifBon = 10,
   seuilReactifFaible = 5,
 
-  -- Position du cadre. « /gesto pos » imprime les valeurs courantes à recopier.
+  -- Position du cadre à la toute première connexion. Ensuite, la position
+  -- mémorisée dans GestoBene_Etat après un déplacement l'emporte.
+  -- « /gesto pos » imprime les valeurs courantes à recopier.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 
   -- Taille d'un carré, en pixels.
@@ -43,7 +45,8 @@ GestoBene_Config = {
 
   -- Le cadre démarre verrouillé. En donjon on clique partout, et un cadre qui
   -- se déplace par accident est une gêne. Le cadenas à gauche des carrés le
-  -- libère d'un clic. L'état ne survit pas au /reload : sans SavedVariables,
-  -- il repart toujours de cette valeur.
+  -- libère d'un clic. Cette valeur ne sert qu'à la toute première
+  -- connexion : ensuite, l'état du cadenas est mémorisé dans GestoBene_Etat
+  -- et survit au /reload.
   verrouille = true,
 }

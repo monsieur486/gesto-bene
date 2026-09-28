@@ -9,8 +9,9 @@ Suivi.UNITES = { "player", "party1", "party2", "party3", "party4" }
 
 -- Surcharges nominatives posées en jeu par les boutons de bascule. Elles
 -- l'emportent sur la règle de classe, ne touchent jamais GestoBene_Config, et
--- meurent avec la session : le groupe change à chaque donjon, et l'addon n'a
--- aucune SavedVariables.
+-- meurent avec la session : le groupe change à chaque donjon. Elles restent
+-- volontairement hors de GestoBene_Etat, qui ne garde que la position du
+-- cadre et l'état du cadenas.
 local surcharges = {}
 
 -- Pose la surcharge du joueur nommé « nom » à « cle », ou la retire si

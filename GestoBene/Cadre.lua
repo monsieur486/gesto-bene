@@ -86,12 +86,13 @@ local constructionEnAttente = false
 -- est licite, contrairement aux cinq carrés.
 local cadenas, boutonsBascule, compteurReactif = nil, {}, nil
 
--- État du verrou, en mémoire seulement. GestoBene_Config doit rester en
+-- État du verrou pendant la session. GestoBene_Config doit rester en
 -- lecture seule — c'est la règle qui garantit que ce que l'utilisateur lit
 -- dans son fichier est ce que l'addon applique — donc le cadenas ne touche
--- jamais GestoBene_Config.verrouille ; il ne fait que s'en inspirer une fois,
--- à la construction. Comme les surcharges de GestoBene_Suivi, cet état ne
--- survit pas au /reload.
+-- jamais GestoBene_Config.verrouille. Chaque bascule est recopiée dans
+-- GestoBene_Etat, d'où Construire la reprend au /reload ; Config ne sert
+-- qu'à la toute première connexion. À la différence des surcharges de
+-- GestoBene_Suivi, cet état survit donc au /reload.
 local verrouille = true
 
 -- Message dans le chat, même prefixe que GestoBene.lua : un cadenas qui ne

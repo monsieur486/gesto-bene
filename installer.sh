@@ -2,9 +2,9 @@
 # Pose l'addon GestoBene dans le client WoW.
 #
 # Le jeu peut rester ouvert : WoW lit « Interface/AddOns » au chargement et n'y
-# écrit jamais. Seul « WTF » est réécrit en quittant, et l'addon n'y touche pas
-# puisqu'il n'utilise aucune SavedVariables. Un /reload suffit donc à prendre
-# les changements — sauf à la toute première installation, où il faut fermer et
+# écrit jamais. Seul « WTF » est réécrit en quittant — c'est là que le jeu
+# range GestoBene_Etat — et ce script n'y touche pas. Un /reload suffit donc
+# à prendre les changements — sauf à la toute première installation, où il faut fermer et
 # relancer le client pour qu'il découvre le dossier.
 set -euo pipefail
 
