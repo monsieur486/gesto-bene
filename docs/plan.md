@@ -1528,5 +1528,6 @@ vérification en jeu pour `Cadre.lua`.
 | Mémoire entre sessions | `4436905` | SavedVariables `GestoBene_Etat` : position et cadenas. Lève la contrainte « aucune SavedVariables » |
 | Compteur de Symboles des rois | `3b1c0c7` | À droite des carrés, vert, orange ou rouge selon `seuilReactifBon` et `seuilReactifFaible` |
 | Supérieure et classe divergente | `75ff2cd` | `Suivi.SuperieurePermise` : quand deux joueurs de même classe attendent des bénédictions différentes, le clic droit pose la normale, car la supérieure touche toute la classe et écraserait l'autre choix |
+| Barre de sceau | `7077912`, `c8839d9` | Sous le carré du joueur, décompte du sceau choisi (`Config.sceau`, Sagesse par défaut) ; clic gauche le lance, clic droit passe au suivant, choix mémorisé dans `GestoBene_Etat`. `/gesto sorts` imprime aussi les sceaux |
 
-La suite de tests compte 64 cas au 2026-09-28 (`cd tests && lua tests.lua`).
+La suite de tests compte 76 cas au 2026-09-28 (`cd tests && lua tests.lua`).

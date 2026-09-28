@@ -23,6 +23,12 @@ normale, qui ne touche que la cible : la supérieure écraserait le choix de
 l'autre. Il la pose aussi faute de supérieure apprise ou de Symbole des rois
 en sac.
 
+Sous ton propre carré, une barre suit ton sceau (Sagesse par défaut), avec
+les mêmes couleurs que les carrés. Un clic gauche le lance ; un clic droit
+passe au sceau suivant parmi ceux que tu connais. Ce choix est mémorisé et
+survit au `/reload`. En combat, la barre affiche tout de suite le nouveau choix,
+mais son clic gauche lance encore l'ancien sceau jusqu'à la fin du combat.
+
 Le cadenas à gauche des carrés verrouille ou libère le déplacement du cadre.
 À droite, un compteur indique le nombre de Symboles des rois en sac.
 
@@ -43,18 +49,18 @@ le client pour qu'il découvre le dossier.
 Tout se règle dans `GestoBene/Config.lua`, éditable hors du jeu. L'addon ne
 fait que le lire : rien de ce que tu y écris ne sera réécrit par le jeu.
 
-Seules deux choses sont mémorisées d'une session à l'autre, dans la
+Seules trois choses sont mémorisées d'une session à l'autre, dans la
 SavedVariables `GestoBene_Etat` (sous `WTF`) : la position du cadre après un
-déplacement, et l'état du cadenas. Elles l'emportent sur `ancrage` et
-`verrouille` de `Config.lua`, qui ne servent plus qu'à la toute première
-connexion.
+déplacement, l'état du cadenas et le sceau choisi au clic droit. Elles
+l'emportent sur `ancrage`, `verrouille` et `sceau` de `Config.lua`, qui ne
+servent plus qu'à la toute première connexion.
 
 ## Commandes
 
 | Commande | Effet |
 |---|---|
 | `/gesto` | Montrer ou cacher le cadre |
-| `/gesto sorts` | Imprimer la résolution des identifiants de sorts |
+| `/gesto sorts` | Imprimer la résolution des identifiants de sorts, sceaux compris |
 | `/gesto pos` | Imprimer l'ancrage courant à recopier dans `Config.lua` |
 | `/gesto etat` | Imprimer l'état de chaque membre |
 

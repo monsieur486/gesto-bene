@@ -10,6 +10,7 @@ Suivre les bénédictions du groupe en donjon 5 joueurs. Un carré par membre
 présent — cinq en groupe complet, **un seul en solo**. Chaque carré montre la
 bénédiction attendue pour ce membre, le temps qu'il lui reste, et alerte quand
 elle manque ou expire bientôt. Un clic sur un carré lance la bénédiction.
+Sous le carré du paladin, une barre suit de la même façon son propre sceau.
 
 L'addon ne décide rien : il montre l'état et sert de bouton. La table des
 classes est écrite à la main dans un fichier, hors du jeu ; un bouton au-dessus
@@ -24,7 +25,8 @@ de chaque carré permet d'y déroger pour un joueur, le temps de la session.
 | Granularité de la config | Par classe dans `Config.lua`, surchargeable par joueur en jeu | Deux joueurs de même classe peuvent avoir des besoins différents (un guerrier Fureur et un guerrier Protection) |
 | Effet du clic sur un carré | Lancer la bénédiction prévue, jamais la changer | Changer de bénédiction passe par le bouton de bascule, pas par le carré |
 | Supérieure quand la classe diverge | Le clic droit pose la normale | Une supérieure touche toute la classe et écraserait le choix de l'autre joueur |
-| Stockage des réglages | `Config.lua` en lecture seule ; `GestoBene_Etat` pour la position et le cadenas | Éditable hors du jeu ; seul ce que l'addon produit lui-même est mémorisé |
+| Stockage des réglages | `Config.lua` en lecture seule ; `GestoBene_Etat` pour la position, le cadenas et le sceau choisi | Éditable hors du jeu ; seul ce que l'addon produit lui-même est mémorisé |
+| Changer de sceau | Clic droit sur la barre de sceau | Le sceau n'a pas de supérieure : le clic droit est libre, et évite un bouton de plus |
 | Groupe incomplet ou solo | Les carrés sans occupant sont **cachés**, pas grisés | En solo l'addon se réduit à un seul carré, celui de Kahalie |
 
 ## 3. Terrain vérifié
@@ -49,11 +51,13 @@ Constats établis sur le poste, avec la source :
 GestoBene/
 ├── GestoBene.toc      déclaration, ## Interface: 30300, SavedVariables
 ├── Config.lua            réglages — le seul fichier que l'utilisateur édite
-├── Sorts.lua             table des bénédictions, résolution des noms      [pur]
+├── Sorts.lua             table des bénédictions et des sceaux,
+│                         résolution des noms                              [pur]
 ├── Suivi.lua             qui porte quoi, combien de temps il reste,
-│                         surcharges par joueur                            [pur]
+│                         surcharges par joueur, sceau choisi              [pur]
 ├── Cadre.lua             les cinq carrés, boutons sécurisés, couleurs,
-│                         bascules, cadenas, compteur de symboles
+│                         bascules, cadenas, compteur de symboles,
+│                         barre de sceau
 └── GestoBene.lua      événements, commandes /gesto (alias /ben)
 ```
 
@@ -92,6 +96,9 @@ GestoBene_Config = {
     DRUID       = "Rois",
   },
 
+  -- Le sceau suivi sous le carré du paladin, à la première connexion.
+  sceau = "Sagesse",
+
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
   seuilAlerte = 60,
 
@@ -114,14 +121,16 @@ GestoBene_Config = {
 Un changement prend effet au `/reload` ou à la reconnexion. Aucune écriture :
 le fichier est lu, jamais modifié par l'addon. `ancrage` et `verrouille` ne
 servent plus qu'à la première connexion : ensuite, `GestoBene_Etat` l'emporte
-(section 8).
+(section 8). Il en va de même pour `sceau`, dès qu'un clic droit a changé le
+choix.
 
 ### Validation au chargement
 
 `Sorts.lua` vérifie chaque valeur de `parClasse`. Une clé inconnue ou une
 bénédiction non reconnue produit un message dans le chat nommant la ligne
-fautive, et cette classe tombe sur `"Puissance"` par défaut. L'addon ne refuse
-jamais de se charger à cause de la configuration.
+fautive, et cette classe tombe sur `"Puissance"` par défaut. Un `sceau`
+inconnu tombe de même sur `"Sagesse"`. L'addon ne refuse jamais de se charger
+à cause de la configuration.
 
 ## 6. Sorts.lua
 
@@ -144,6 +153,23 @@ GestoBene_Sorts.reactif = 21177  -- Symbole des rois
 en jeu le 2026-09-18, les identifiants 19977 et 25890 rendent `INCONNU` sur ce
 client. Elle n'existe pas en 3.3.5a.
 
+### Table des sceaux
+
+```lua
+GestoBene_Sorts.sceaux = {
+  Piete = 21084, Sagesse = 20166, Lumiere = 20165, Justice = 20164,
+  Commandement = 20375, Vengeance = 31801, Corruption = 53736,
+}
+```
+
+Un identifiant par sceau : pas de rang supérieur, pas de réactif. Vengeance
+(Alliance) et Corruption (Horde) cohabitent ; seul celui de la faction est
+appris. `Sorts.ORDRE_SCEAUX` fixe l'ordre du cycle, et `Sorts.SceauSuivant`
+le parcourt parmi les sceaux appris, comme `Sorts.Suivante` pour les
+bénédictions. Les sceaux ont leurs propres caches et abréviations : `Sagesse`
+désigne à la fois une bénédiction et un sceau. Identifiants non encore relevés
+en jeu : `/gesto sorts` les imprime pour vérification.
+
 ### Résolution
 
 ```lua
@@ -161,7 +187,8 @@ La disponibilité d'une supérieure exige en plus `GetItemCount(21177) > 0`.
 
 `Rois → ROI`, `Puissance → PUI`, `Sagesse → SAG`, `Sanctuaire → SAN`.
 Écrites en dur : ce sont des étiquettes de l'addon, pas des
-chaînes du jeu.
+chaînes du jeu. Pour les sceaux : `PIE`, `SAG`, `LUM`, `JUS`, `COM`, `VEN`,
+`COR`.
 
 ### Identifiants confirmés en jeu
 
@@ -301,6 +328,12 @@ qu'elle nomme et de cacher les autres.
 | `bientot` | La bonne, restant sous `seuilAlerte` |
 | `posee` | La bonne, au-dessus du seuil |
 
+`Suivi.EtatSceau()` rend les mêmes états, sauf `vide`, pour le sceau que porte
+le paladin face à `Suivi.SceauChoisi()` : le choix mémorisé dans
+`GestoBene_Etat.sceau` s'il est connu, sinon `Config.sceau`.
+`Suivi.ChoisirSceau` efface la mémoire quand le choix revient sur celui de
+`Config.lua`, comme la bascule retire une surcharge égale à la règle de classe.
+
 L'état `mauvaise` n'était pas dans la demande initiale. Il sort gratuitement de
 la lecture et évite un mensonge : sans lui, un carré vert pourrait signifier
 « il porte Puissance alors que tu as configuré Sagesse ».
@@ -324,6 +357,17 @@ ouvert, et redimensionne sa largeur sur le nombre de carrés visibles.
 Chaque carré porte trois textes : l'abréviation en haut (suivie d'un `+` pour
 une supérieure), le temps restant au centre, le nom du joueur en dessous.
 
+### Barre de sceau
+
+Sous le carré du paladin et son nom, une barre de la largeur d'un carré et de
+18 pixels de haut affiche l'abréviation et le temps restant, par exemple
+`SAG 29:12`, avec les couleurs des carrés. C'est un
+`SecureActionButtonTemplate` à l'unité `player`. Seul `type1` est posé : le
+clic gauche lance le sceau choisi. Le clic droit ne déclenche donc aucune
+action protégée ; `PostClick` passe au sceau suivant, repeint aussitôt et
+appelle `Reprogrammer`. Le joueur existant toujours, la barre ne se montre ni
+ne se cache jamais : elle suit le cadre parent.
+
 ### Boutons ordinaires autour des carrés
 
 Aucun de ces boutons ne lance de sort ; seuls les cinq carrés sont protégés.
@@ -343,8 +387,8 @@ Aucun de ces boutons ne lance de sort ; seuls les cinq carrés sont protégés.
 
 La SavedVariables `GestoBene_Etat`, déclarée dans le `.toc`, ne garde que ce
 que l'addon produit lui-même : la position du cadre, mémorisée au relâcher
-d'un glisser, et l'état du cadenas, mémorisé à chaque bascule. Les deux
-l'emportent sur `Config.lua` dès qu'ils existent. Rien d'autre n'y entre — en
+d'un glisser, l'état du cadenas, mémorisé à chaque bascule, et le sceau
+choisi au clic droit. Tous l'emportent sur `Config.lua` dès qu'ils existent. Rien d'autre n'y entre — en
 particulier pas les surcharges par joueur.
 
 Créer les cinq carrés d'emblée, puis n'en montrer qu'une partie, est un choix
@@ -445,7 +489,7 @@ de se mettre à jour normalement en combat.
 | `PLAYER_LOGIN` | Construire les carrés, résoudre les sorts, premier rendu |
 | `PLAYER_ENTERING_WORLD` | Relire le groupe entier |
 | `PARTY_MEMBERS_CHANGED` | Reprogrammer les attributs, relire le groupe |
-| `UNIT_AURA` | Relire la seule unité concernée, si elle est à nous |
+| `UNIT_AURA` | Relire la seule unité concernée, si elle est à nous ; pour `player`, repeindre aussi la barre de sceau |
 | `SPELLS_CHANGED` | Re-résoudre les sorts appris (niveau, nouveau rang) |
 | `ACTIVE_TALENT_GROUP_CHANGED` | Re-résoudre après un basculement de double spé |
 | `BAG_UPDATE` | Recompter les symboles, repeindre le compteur |
@@ -471,7 +515,7 @@ balayage des auras n'a donc lieu que sur événement.
 | Commande | Effet |
 |---|---|
 | `/gesto` | Montrer ou cacher le cadre |
-| `/gesto sorts` | Imprimer la résolution des identifiants et l'état appris |
+| `/gesto sorts` | Imprimer la résolution des identifiants et l'état appris, sceaux compris |
 | `/gesto pos` | Imprimer l'ancrage courant à recopier dans `Config.lua` |
 | `/gesto etat` | Imprimer, pour chaque membre, classe, bénédiction attendue, état |
 
@@ -531,8 +575,13 @@ Sur `Suivi.lua` :
     bénédictions différentes, permise quand la classe est unanime ou seule.
 18. Une bénédiction est reconnue par son nom quel que soit son rang, et la
     supérieure est distinguée de la normale.
+19. Le cycle des sceaux ne passe que par les sceaux appris ; un sceau mal
+    configuré tombe sur Sagesse.
+20. Le sceau choisi vient de `GestoBene_Etat` s'il est connu, sinon de
+    `Config` ; la barre rend `absente`, `posee`, `bientot` ou `mauvaise`, et
+    ni le sceau ni la bénédiction de sagesse ne passent l'un pour l'autre.
 
-Cette liste donne les familles de cas ; `lua tests.lua` en compte 64 au
+Cette liste donne les familles de cas ; `lua tests.lua` en compte 76 au
 2026-09-28.
 
 `Cadre.lua` et `GestoBene.lua` ne sont pas couverts : ils touchent l'API
@@ -543,7 +592,7 @@ d'affichage assumées et non testées (section 4). Ils se vérifient en jeu.
 
 ### Vérification en jeu
 
-Une fois les tests au vert, la recette manuelle tient en sept points :
+Une fois les tests au vert, la recette manuelle tient en huit points :
 
 1. Le cadre apparaît à la connexion.
 2. **Seul en ville, un unique carré s'affiche** — celui de Kahalie.
@@ -556,6 +605,10 @@ Une fois les tests au vert, la recette manuelle tient en sept points :
    élargit le cadre.
 7. Entrer en combat après un changement de groupe affiche la bordure jaune sans
    provoquer d'erreur Lua, et le rendu se corrige à la fin du combat.
+8. La barre de sceau décompte le sceau posé ; un clic droit passe au suivant et
+   le choix survit au `/reload`. En combat, le clic droit change l'affichage
+   tout de suite, borde la barre de jaune, et le clic gauche lance le nouveau
+   sceau à la fin du combat.
 
 ## 12. Hors périmètre
 
@@ -577,5 +630,6 @@ Retiré volontairement, faute d'usage établi :
 | Changement de groupe en combat | Rendu « en attente », reprogrammation différée à `PLAYER_REGEN_ENABLED` |
 | `Show` / `Hide` interdits en combat sur un bouton protégé | Les cinq carrés sont créés hors combat une fois pour toutes ; seule leur visibilité varie, par la même file d'attente |
 | `UnitBuff` muet sur une unité hors de portée | Pas de rebasculement en `absente` : le carré garde son dernier état connu, `Cadre.Rafraichir` continue le décompte depuis l'expiration mémorisée sans relire de buff, jusqu'au prochain `UNIT_AURA` qui, lui, dira la vérité |
+| Identifiants de sceaux non relevés en jeu | `/gesto sorts` les imprime ; un sceau que le client ignore sort du cycle |
 | Une supérieure écrase la bénédiction d'un autre joueur de la même classe | `Suivi.SuperieurePermise` fait retomber le clic droit sur la normale |
 | Le dossier du client n'est pas sous git | L'addon vit dans ce dépôt ; `installer.sh` le recopie dans le client |
