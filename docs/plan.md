@@ -1,5 +1,12 @@
 # Addon GestoBene — plan d'implémentation
 
+> **Plan exécuté.** Ce document est le plan de la **première version**,
+> réalisé le 2026-09-18 (tâches 1 à 6). Ses extraits de code et ses contraintes
+> décrivent cette version-là et sont gardés tels quels, comme trace de la
+> construction. L'addon a évolué depuis : voir la section
+> [Évolutions après le plan](#évolutions-après-le-plan) en fin de document, et
+> `docs/conception.md` pour l'état actuel.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Un addon WoW 3.3.5a qui affiche un carré par membre du groupe avec la bénédiction que sa classe commande et le temps restant, et qui lance cette bénédiction au clic.
@@ -15,6 +22,7 @@
 - **Lua 5.1 uniquement.** Pas de `goto`, pas d'opérateur `#` sur les tables à trous, pas de `table.unpack` (c'est `unpack`). Le poste a `/usr/bin/lua` en 5.1.5, la même version que le client.
 - **Aucune dépendance.** Ni Ace3, ni LibStub, ni aucune bibliothèque du dossier `AddOns`.
 - **Aucune SavedVariables.** Le `.toc` ne déclare aucune variable sauvegardée. L'addon lit `Config.lua`, ne l'écrit jamais.
+  *Levée depuis (`4436905`) : `GestoBene_Etat` mémorise la position du cadre et l'état du cadenas. `Config.lua` reste en lecture seule.*
 - **Aucun nom de sort en dur.** Les noms viennent toujours de `GetSpellInfo(identifiant)`. Le client est en `frFR` mais l'addon ne doit contenir aucun nom français de sort.
 - **Interface : 30300** dans le `.toc`.
 - **Commentaires et messages en français.** Les noms de variables et de fonctions aussi — c'est la convention de ce projet (voir `Config.lua` dans la spec).
@@ -1483,6 +1491,9 @@ Recette, dans l'ordre :
 
 Noter tout écart pour correction.
 
+La recette à jour, qui ajoute notamment le clic droit avec deux joueurs de
+même classe, est dans `docs/conception.md`, section 11.
+
 ---
 
 ## Couverture de la spec
@@ -1497,3 +1508,25 @@ Noter tout écart pour correction.
 | 9. Verrou de combat, file d'attente | 5 (`Reprogrammer`, `ViderFile`) |
 | 10. Événements, rafraîchissement, commandes | 6 |
 | 11. Tests, faux de l'API, recette en jeu | 1, 3, 4, 6 |
+
+---
+
+## Évolutions après le plan
+
+Changements apportés une fois les six tâches terminées, dans l'ordre. Chacun a
+suivi la même discipline : test d'abord pour `Sorts.lua` et `Suivi.lua`,
+vérification en jeu pour `Cadre.lua`.
+
+| Évolution | Commits | Effet |
+|---|---|---|
+| Corrections de recette | `83fc051` à `8481cce` | Garde-fous contre l'état vide et le combat, texte « X » du carré sans bénédiction, reprogrammation en combat seulement si l'ensemble visé change, classes absentes de `Config.lua` signalées |
+| Table par classe renouvelée | `2f61ca3` | Rois pour tous, sauf les porteurs de tissu et le paladin en Sagesse |
+| Cadenas | `440dfc4`, `12ea780`, `41da51e` | Verrouille le déplacement du cadre ; 20 pixels, lettre `V` ou `L` ; n'écrit plus jamais `Config.lua` |
+| Bascule par joueur | `617e081`, `3110ff0`, `492f827`, `6e1b935`, `0d82c90` | Un bouton au-dessus de chaque carré fait défiler les bénédictions apprises et pose une surcharge nominative dans `Suivi` ; il affiche la bénédiction choisie. Remplace le bouton DONJON/SOLO de `4d9f813` |
+| Supérieure signalée | `8e089a3` | Un `+` suit l'abréviation quand la bénédiction portée est la supérieure |
+| Détection par nom | `7843897` | Les buffs sont reconnus par leur nom localisé : un rang élevé n'a pas l'identifiant du rang 1 stocké dans la table |
+| Mémoire entre sessions | `4436905` | SavedVariables `GestoBene_Etat` : position et cadenas. Lève la contrainte « aucune SavedVariables » |
+| Compteur de Symboles des rois | `3b1c0c7` | À droite des carrés, vert, orange ou rouge selon `seuilReactifBon` et `seuilReactifFaible` |
+| Supérieure et classe divergente | `75ff2cd` | `Suivi.SuperieurePermise` : quand deux joueurs de même classe attendent des bénédictions différentes, le clic droit pose la normale, car la supérieure touche toute la classe et écraserait l'autre choix |
+
+La suite de tests compte 64 cas au 2026-09-28 (`cd tests && lua tests.lua`).
