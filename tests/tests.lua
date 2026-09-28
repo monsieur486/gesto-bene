@@ -828,7 +828,7 @@ Test("un choix memorise inconnu est ignore", function()
   AssertEgal(GestoBene_Suivi.SceauChoisi(), "Sagesse", "repli sur Config")
 end)
 
-Test("sans sceau actif la barre signale le manque", function()
+Test("sans sceau actif le carre de sceau signale le manque", function()
   ChargerSceaux(MondeSceaux())
   local etat = GestoBene_Suivi.EtatSceau()
   AssertEgal(etat.etat, "absente", "etat")
@@ -862,7 +862,7 @@ Test("un autre sceau que le choisi est signale comme mauvais", function()
 end)
 
 -- Sagesse est à la fois un sceau et une bénédiction : l'un ne doit pas
--- passer pour l'autre, ni sur la barre ni sur le carré.
+-- passer pour l'autre, ni sur le carré de sceau ni sur celui du joueur.
 Test("la benediction de sagesse ne passe pas pour le sceau et inversement", function()
   local monde = MondeSceaux()
   monde.buffs.player = { { spellId = 19742, duree = 600, expiration = 1500, lanceur = "player" } }

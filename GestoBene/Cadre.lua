@@ -4,7 +4,7 @@
 -- au-dessus de chaque carré, une bascule qui fait défiler les bénédictions
 -- que ce joueur sait lancer. Un simple texte s'y ajoute aussi, à droite : le
 -- compteur de Symboles des rois. Aucun d'eux ne lance de sort ; seuls les
--- cinq carrés sont protégés, ainsi que la barre de sceau sous le carré du
+-- cinq carrés sont protégés, ainsi que le carré de sceau sous celui du
 -- joueur, qui lance le sceau choisi.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
@@ -48,11 +48,7 @@ local TAILLE_COMPTEUR_REACTIF = 20
 -- l'autre côté.
 local ECART_COMPTEUR_REACTIF = 4
 
--- Hauteur de la barre de sceau, de la largeur d'un carré : assez pour une
--- ligne de texte, sans rivaliser avec les carrés de bénédiction.
-local HAUTEUR_SCEAU = 18
-
--- Distance entre le bas du carré du joueur et la barre de sceau : le nom du
+-- Distance entre le bas du carré du joueur et le carré de sceau : le nom du
 -- joueur occupe cet espace, sous le carré.
 local ECART_SCEAU = 14
 
@@ -96,7 +92,7 @@ local constructionEnAttente = false
 -- est licite, contrairement aux cinq carrés.
 local cadenas, boutonsBascule, compteurReactif = nil, {}, nil
 
--- La barre de sceau, sous le carré du joueur. Bouton protégé : clic gauche,
+-- Le carré de sceau, sous celui du joueur. Bouton protégé : clic gauche,
 -- le sceau choisi ; clic droit, aucune action protégée, seulement le
 -- passage au sceau suivant (voir CreerSceau).
 local sceau = nil
@@ -293,9 +289,11 @@ local function CreerCompteurReactif()
   return compteur
 end
 
--- La barre de sceau, sous le carré du joueur et son nom. Le joueur existe
--- toujours : elle est montrée une fois pour toutes et suit le cadre parent,
--- sans jamais avoir à se montrer ou se cacher en combat.
+-- Le carré de sceau, sous celui du joueur et son nom. Même taille et mêmes
+-- deux lignes qu'un carré de bénédiction : l'abréviation en haut, le temps au
+-- centre ; une barre d'une seule ligne tassait « SAG 29:12 » dans 48 pixels.
+-- Le joueur existe toujours : il est montré une fois pour toutes et suit le
+-- cadre parent, sans jamais avoir à se montrer ou se cacher en combat.
 --
 -- Seul « type1 » est posé : le clic droit ne déclenche aucune action
 -- protégée, et PostClick en profite pour faire avancer le choix du sceau.
@@ -303,10 +301,11 @@ end
 -- de sort dans « spell1 » devra attendre, ce que Reprogrammer sait différer.
 local function CreerSceau()
   local carreJoueur = carres.player
+  local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", "GestoBeneSceau", parent,
                              "SecureActionButtonTemplate")
-  bouton:SetWidth(GestoBene_Config.tailleCarre)
-  bouton:SetHeight(HAUTEUR_SCEAU)
+  bouton:SetWidth(taille)
+  bouton:SetHeight(taille)
   bouton:SetPoint("TOP", carreJoueur, "BOTTOM", 0, -ECART_SCEAU)
   bouton:RegisterForClicks("AnyUp")
   bouton:SetAttribute("unit", "player")
@@ -319,12 +318,15 @@ local function CreerSceau()
   bouton.bordure = CreateFrame("Frame", nil, bouton)
   bouton.bordure:SetAllPoints(bouton)
   bouton.bordure:SetBackdrop({
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8,
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
   })
   bouton.bordure:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
-  bouton.texte = bouton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  bouton.texte:SetPoint("CENTER", bouton, "CENTER", 0, 0)
+  bouton.abreviation = bouton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  bouton.abreviation:SetPoint("TOP", bouton, "TOP", 0, -3)
+
+  bouton.temps = bouton:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  bouton.temps:SetPoint("CENTER", bouton, "CENTER", 0, -2)
 
   bouton:SetScript("PostClick", function(self, clic)
     if clic ~= "RightButton" then return end
@@ -333,7 +335,7 @@ local function CreerSceau()
     GestoBene_Suivi.ChoisirSceau(suivant)
     Cadre.Reprogrammer()
     -- Repeint tout de suite, même si Reprogrammer a dû différer en combat :
-    -- la barre montre le nouveau choix, face au sceau réellement porté.
+    -- le carré montre le nouveau choix, face au sceau réellement porté.
     Cadre.PeindreSceau()
   end)
 
@@ -587,7 +589,7 @@ local function CalculerVise()
       vise[unite] = { visible = false }
     end
   end
-  -- La barre de sceau entre dans la même comparaison que les carrés : un
+  -- Le carré de sceau entre dans la même comparaison que les autres : un
   -- changement de sceau en combat doit lever le drapeau d'attente.
   vise.sceau = {
     visible = true,
@@ -733,7 +735,7 @@ function Cadre.PeindreUnite(unite)
   end
 end
 
--- Lit le sceau porté et peint la barre, sur le modèle de PeindreUnite :
+-- Lit le sceau porté et peint son carré, sur le modèle de PeindreUnite :
 -- l'état est mémorisé pour que Rafraichir fasse avancer le décompte.
 function Cadre.PeindreSceau()
   if not sceau then return end
@@ -743,13 +745,14 @@ function Cadre.PeindreSceau()
 
   if etat.etat == "absente" then
     sceau.fond:SetTexture(unpack(COULEURS.absente))
-    sceau.texte:SetText(GestoBene_Sorts.AbregerSceau(etat.cle) .. " " .. TEXTE_ABSENTE)
+    sceau.abreviation:SetText(GestoBene_Sorts.AbregerSceau(etat.cle))
+    sceau.temps:SetText(TEXTE_ABSENTE)
   else
     -- Comme sur les carrés, l'abréviation suit le sceau réellement porté,
     -- celui dont le décompte s'affiche.
-    etat.abreviation = GestoBene_Sorts.AbregerSceau(etat.clePortee)
     sceau.fond:SetTexture(unpack(COULEURS[etat.etat]))
-    sceau.texte:SetText(etat.abreviation .. " " .. FormaterTemps(etat.restant))
+    sceau.abreviation:SetText(GestoBene_Sorts.AbregerSceau(etat.clePortee))
+    sceau.temps:SetText(FormaterTemps(etat.restant))
   end
 
   if not reprogrammationEnAttente then
@@ -817,8 +820,7 @@ function Cadre.Rafraichir()
     if etat.etat == "absente" then
       Pulser(sceau.fond, maintenant)
     elseif etat.expiration then
-      local restant = Decompter(etat, sceau.fond, maintenant)
-      sceau.texte:SetText(etat.abreviation .. " " .. FormaterTemps(restant))
+      sceau.temps:SetText(FormaterTemps(Decompter(etat, sceau.fond, maintenant)))
     end
   end
 end

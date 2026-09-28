@@ -121,7 +121,7 @@ function Suivi.LireUnite(unite)
 end
 
 -- L'état d'un buff attendu face à celui réellement porté, sans le nom du
--- joueur : partagé par les carrés et la barre de sceau.
+-- joueur : partagé par les carrés de bénédiction et de sceau.
 local function Qualifier(attendue, portee)
   if not portee then
     return { etat = "absente", cle = attendue }
@@ -178,7 +178,7 @@ function Suivi.ChoisirSceau(cle)
   end
 end
 
--- L'état de la barre de sceau, sur le modèle de Suivi.Etat : le sceau est un
+-- L'état du carré de sceau, sur le modèle de Suivi.Etat : le sceau est un
 -- buff que le paladin ne pose que sur lui-même.
 function Suivi.EtatSceau()
   return Qualifier(Suivi.SceauChoisi(), ChercherNotreBuff("player", GestoBene_Sorts.SceauParNom))

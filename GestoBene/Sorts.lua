@@ -40,7 +40,7 @@ local ABREVIATIONS = {
 Sorts.ORDRE = { "Rois", "Puissance", "Sagesse", "Sanctuaire" }
 
 -- Même règle pour le cycle des sceaux, parcouru par le clic droit sur la
--- barre de sceau.
+-- carré de sceau.
 Sorts.ORDRE_SCEAUX = {
   "Piete", "Sagesse", "Lumiere", "Justice", "Commandement", "Vengeance", "Corruption",
 }
