@@ -110,8 +110,9 @@ GestoBene_Config = {
   -- Position du cadre à la toute première connexion.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 
-  -- Taille d'un carré, en pixels.
-  tailleCarre = 48,
+  -- Dimensions d'un carré, en pixels : plus large que haut.
+  largeurCarre = 48,
+  hauteurCarre = 32,
 
   -- État du cadenas à la toute première connexion.
   verrouille = true,
@@ -356,6 +357,12 @@ ouvert, et redimensionne sa largeur sur le nombre de carrés visibles.
 
 Chaque carré porte trois textes : l'abréviation en haut (suivie d'un `+` pour
 une supérieure), le temps restant au centre, le nom du joueur en dessous.
+
+Malgré leur nom, les carrés sont des rectangles de 48 × 32 pixels
+(`largeurCarre`, `hauteurCarre`) : un tiers de hauteur en moins que les
+premiers carrés de 48, qui prenaient trop de place à l'écran. Le décompte est
+écrit en `GameFontHighlightSmall`, un cran sous `GameFontHighlight` : à 32
+pixels de haut, les deux lignes doivent tenir sans se chevaucher.
 
 ### Carré de sceau
 
