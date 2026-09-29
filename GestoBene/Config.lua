@@ -49,8 +49,10 @@ GestoBene_Config = {
   -- « /gesto pos » imprime les valeurs courantes à recopier.
   ancrage = { point = "CENTER", x = 0, y = -200 },
 
-  -- Taille d'un carré, en pixels.
-  tailleCarre = 48,
+  -- Dimensions d'un carré, en pixels : plus large que haut. Le carré de sceau
+  -- prend les mêmes.
+  largeurCarre = 48,
+  hauteurCarre = 32,
 
   -- Le cadre démarre verrouillé. En donjon on clique partout, et un cadre qui
   -- se déplace par accident est une gêne. Le cadenas à gauche des carrés le

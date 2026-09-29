@@ -28,7 +28,7 @@ GestoBene_Etat = GestoBene_Etat or {}
 local ECART = 4
 
 -- Taille du cadenas, nettement sous celle d'un carré : à la taille d'un
--- carré de bénédiction (48 pixels), l'aplat de couleur ne se lisait plus
+-- carré de bénédiction (48 pixels de large), l'aplat de couleur ne se lisait plus
 -- comme un cadenas mais comme un pavé détaché. Une vingtaine de pixels
 -- suffit à rester facile à voir et à attraper à la souris, ce qu'une case à
 -- cocher de 16 pixels n'était déjà pas.
@@ -53,7 +53,7 @@ local ECART_COMPTEUR_REACTIF = 4
 local ECART_SCEAU = 14
 
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
--- entier déborde d'un carré de 48 pixels, et le fond rouge qui pulse dit déjà
+-- entier déborde d'un carré de 48 pixels de large, et le fond rouge qui pulse dit déjà
 -- de quoi il retourne.
 local TEXTE_ABSENTE = "X"
 
@@ -132,11 +132,10 @@ local function FormaterTemps(restant)
 end
 
 local function CreerCarre(unite, index)
-  local taille = GestoBene_Config.tailleCarre
   local carre = CreateFrame("Button", "GestoBeneCarre" .. index, parent,
                             "SecureActionButtonTemplate")
-  carre:SetWidth(taille)
-  carre:SetHeight(taille)
+  carre:SetWidth(GestoBene_Config.largeurCarre)
+  carre:SetHeight(GestoBene_Config.hauteurCarre)
   carre:RegisterForClicks("AnyUp")
 
   -- La cible est gravée une fois pour toutes : elle ne changera jamais.
@@ -159,7 +158,9 @@ local function CreerCarre(unite, index)
   carre.abreviation = carre:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   carre.abreviation:SetPoint("TOP", carre, "TOP", 0, -3)
 
-  carre.temps = carre:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  -- Police réduite d'un cran : à 32 pixels de haut, un décompte en
+  -- GameFontHighlight touchait l'abréviation au-dessus.
+  carre.temps = carre:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   carre.temps:SetPoint("CENTER", carre, "CENTER", 0, -2)
 
   carre.nom = carre:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -289,7 +290,7 @@ local function CreerCompteurReactif()
   return compteur
 end
 
--- Le carré de sceau, sous celui du joueur et son nom. Même taille et mêmes
+-- Le carré de sceau, sous celui du joueur et son nom. Mêmes dimensions et mêmes
 -- deux lignes qu'un carré de bénédiction : l'abréviation en haut, le temps au
 -- centre ; une barre d'une seule ligne tassait « SAG 29:12 » dans 48 pixels.
 -- Le joueur existe toujours : il est montré une fois pour toutes et suit le
@@ -301,11 +302,10 @@ end
 -- de sort dans « spell1 » devra attendre, ce que Reprogrammer sait différer.
 local function CreerSceau()
   local carreJoueur = carres.player
-  local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", "GestoBeneSceau", parent,
                              "SecureActionButtonTemplate")
-  bouton:SetWidth(taille)
-  bouton:SetHeight(taille)
+  bouton:SetWidth(GestoBene_Config.largeurCarre)
+  bouton:SetHeight(GestoBene_Config.hauteurCarre)
   bouton:SetPoint("TOP", carreJoueur, "BOTTOM", 0, -ECART_SCEAU)
   bouton:RegisterForClicks("AnyUp")
   bouton:SetAttribute("unit", "player")
@@ -325,7 +325,7 @@ local function CreerSceau()
   bouton.abreviation = bouton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   bouton.abreviation:SetPoint("TOP", bouton, "TOP", 0, -3)
 
-  bouton.temps = bouton:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  bouton.temps = bouton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   bouton.temps:SetPoint("CENTER", bouton, "CENTER", 0, -2)
 
   bouton:SetScript("PostClick", function(self, clic)
@@ -370,9 +370,8 @@ end
 -- basculer l'un ne doit pas basculer l'autre. N'écrit jamais Config.lua : la
 -- surcharge meurt avec la session, comme le reste de GestoBene_Suivi.
 local function CreerBoutonBascule(unite, carre)
-  local taille = GestoBene_Config.tailleCarre
   local bouton = CreateFrame("Button", nil, parent)
-  bouton:SetWidth(taille)
+  bouton:SetWidth(GestoBene_Config.largeurCarre)
   bouton:SetHeight(14)
   bouton:SetPoint("BOTTOM", carre, "TOP", 0, 2)
   bouton:RegisterForClicks("LeftButtonUp")
@@ -511,8 +510,8 @@ function Cadre.Construire()
   local ancrage = GestoBene_Etat.position or GestoBene_Config.ancrage
   parent = CreateFrame("Frame", "GestoBeneCadre", UIParent)
   parent:SetPoint(ancrage.point, UIParent, ancrage.point, ancrage.x, ancrage.y)
-  parent:SetHeight(GestoBene_Config.tailleCarre + 16)
-  parent:SetWidth(GestoBene_Config.tailleCarre)
+  parent:SetHeight(GestoBene_Config.hauteurCarre + 16)
+  parent:SetWidth(GestoBene_Config.largeurCarre)
   parent:SetMovable(true)
   parent:EnableMouse(true)
   parent:RegisterForDrag("LeftButton")
@@ -551,7 +550,7 @@ end
 
 -- Place les carrés visibles côte à côte et ajuste la largeur du parent.
 local function Disposer(membres)
-  local taille = GestoBene_Config.tailleCarre
+  local taille = GestoBene_Config.largeurCarre
   local decalage = 0
   for _, unite in ipairs(membres) do
     local carre = carres[unite]

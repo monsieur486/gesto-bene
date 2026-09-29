@@ -122,7 +122,8 @@ Test("la config fournit les dix classes", function()
     AssertVrai(GestoBene_Config.parClasse[jeton], "classe " .. jeton)
   end
   AssertEgal(GestoBene_Config.seuilAlerte, 60, "seuil")
-  AssertEgal(GestoBene_Config.tailleCarre, 48, "taille")
+  AssertEgal(GestoBene_Config.largeurCarre, 48, "largeur")
+  AssertEgal(GestoBene_Config.hauteurCarre, 32, "hauteur")
   AssertEgal(GestoBene_Config.ancrage.point, "CENTER", "ancrage")
 end)
 
