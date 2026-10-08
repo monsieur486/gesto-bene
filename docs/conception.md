@@ -10,7 +10,8 @@ Suivre les bénédictions du groupe en donjon 5 joueurs. Un carré par membre
 présent — cinq en groupe complet, **un seul en solo**. Chaque carré montre la
 bénédiction attendue pour ce membre, le temps qu'il lui reste, et alerte quand
 elle manque ou expire bientôt. Un clic sur un carré lance la bénédiction.
-Sous le carré du paladin, un carré de sceau suit de la même façon son propre sceau.
+À gauche du cadenas, un carré de sceau suit de la même façon son propre sceau :
+tout tient sur une seule ligne.
 
 L'addon ne décide rien : il montre l'état et sert de bouton. La table des
 classes est écrite à la main dans un fichier, hors du jeu ; un bouton au-dessus
@@ -96,7 +97,7 @@ GestoBene_Config = {
     DRUID       = "Rois",
   },
 
-  -- Le sceau suivi sous le carré du paladin, à la première connexion.
+  -- Le sceau suivi par le carré à gauche du cadenas, à la première connexion.
   sceau = "Sagesse",
 
   -- Sous ce nombre de secondes restantes, le carré passe en orange.
@@ -366,15 +367,18 @@ pixels de haut, les deux lignes doivent tenir sans se chevaucher.
 
 ### Carré de sceau
 
-Sous le carré du paladin et son nom, un carré de même taille affiche sur deux
-lignes l'abréviation du sceau en haut et le temps restant au centre, avec les
-couleurs des carrés. Une première version tenait sur une barre de 18 pixels
-et une seule ligne, `SAG 29:12` : trop tassée dans 48 pixels de large. C'est un
+À gauche du cadenas, sur la ligne des carrés, un carré de même taille affiche
+sur deux lignes l'abréviation du sceau en haut et le temps restant au centre,
+avec les couleurs des carrés. Une première version tenait sur une barre de
+18 pixels et une seule ligne, `SAG 29:12` : trop tassée dans 48 pixels de
+large. C'est un
 `SecureActionButtonTemplate` à l'unité `player`. Seul `type1` est posé : le
 clic gauche lance le sceau choisi. Le clic droit ne déclenche donc aucune
 action protégée ; `PostClick` passe au sceau suivant, repeint aussitôt et
 appelle `Reprogrammer`. Le joueur existant toujours, ce carré ne se montre ni
-ne se cache jamais : il suit le cadre parent.
+ne se cache jamais : il suit le cadre parent. Il pendait d'abord sous le carré
+du joueur ; il a rejoint la ligne pour que l'ensemble — sceau, cadenas,
+carrés, compteur — tienne sur une seule rangée.
 
 ### Boutons ordinaires autour des carrés
 
@@ -385,8 +389,8 @@ Aucun de ces boutons ne lance de sort ; seuls les cinq carrés sont protégés.
   celles que le paladin sait lancer (`Sorts.Suivante`), et pose une surcharge
   nominative. Revenir sur la valeur de la classe retire la surcharge. Cachée
   quand il n'y a nulle part où aller.
-- **Cadenas** — à gauche, 20 pixels. Gris sombre et `V` verrouillé, jaune et
-  `L` libre ; ouvert, il sert aussi de poignée.
+- **Cadenas** — à gauche des carrés, entre eux et le carré de sceau,
+  20 pixels. Gris sombre et `V` verrouillé, jaune et `L` libre ; ouvert, il sert aussi de poignée.
 - **Compteur de Symboles des rois** — à droite. Vert, orange ou rouge selon
   `seuilReactifBon` et `seuilReactifFaible`. Il se repeint même en combat : ce
   n'est qu'un texte.
