@@ -388,7 +388,10 @@ Aucun de ces boutons ne lance de sort ; seuls les cinq carrés sont protégés.
   bénédiction choisie pour ce joueur ; un clic passe à la suivante parmi
   celles que le paladin sait lancer (`Sorts.Suivante`), et pose une surcharge
   nominative. Revenir sur la valeur de la classe retire la surcharge. Cachée
-  quand il n'y a nulle part où aller.
+  quand il n'y a nulle part où aller. En combat, le choix est noté et affiché
+  tout de suite, mais les carrés gardent leurs sorts jusqu'à la fin du
+  combat : un message le dit, car d'ici là un clic droit sur un autre porteur
+  de la classe lancerait encore la supérieure, qui écraserait ce choix.
 - **Cadenas** — à gauche des carrés, entre eux et le carré de sceau,
   20 pixels. Gris sombre et `V` verrouillé, jaune et `L` libre ; ouvert, il sert aussi de poignée.
 - **Compteur de Symboles des rois** — à droite. Vert, orange ou rouge selon

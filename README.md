@@ -21,7 +21,13 @@ remplace ta bénédiction sur chacun d'eux. Quand deux joueurs de la même
 classe attendent des bénédictions différentes, le clic droit pose donc la
 normale, qui ne touche que la cible : la supérieure écraserait le choix de
 l'autre. Il la pose aussi faute de supérieure apprise ou de Symbole des rois
-en sac.
+en sac. À l'inverse, tant que les joueurs d'une même classe attendent la
+même bénédiction, le clic droit sur l'un pose la supérieure sur tous : leurs
+carrés changent ensemble, c'est voulu.
+
+En combat, le bouton note le nouveau choix tout de suite, mais les carrés ne
+le prennent qu'à la fin du combat — un message le rappelle. D'ici là, un clic
+droit sur un autre joueur de la même classe lancerait encore la supérieure.
 
 Tout tient sur une seule ligne. À gauche du cadenas, un carré suit ton sceau
 (Sagesse par défaut), avec la même présentation et les mêmes couleurs. Un clic
