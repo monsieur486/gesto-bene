@@ -411,6 +411,14 @@ local function CreerBoutonBascule(unite, carre)
     -- bien changé d'intention, seule l'application aux carrés peut attendre.
     Cadre.Reprogrammer()
     ActualiserBascules()
+
+    -- En combat, les carrés gardent leurs anciens sorts : un clic droit sur
+    -- un autre porteur de la classe lancerait encore la supérieure, qui
+    -- écraserait ce choix-ci. Le dire évite de croire à un carré qui change
+    -- tout seul.
+    if InCombatLockdown() then
+      Dire("choix note, applique aux carres a la fin du combat")
+    end
   end)
 
   bouton:SetScript("OnEnter", function(self)
