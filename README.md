@@ -45,7 +45,8 @@ Le cadenas à gauche des carrés verrouille ou libère le déplacement du cadre.
 ./installer.sh
 ```
 
-Le script copie `GestoBene/` dans `Interface/AddOns/` du client. Le jeu peut
+Le script passe d'abord les tests et ne pose rien s'ils échouent, puis copie
+`GestoBene/` dans `Interface/AddOns/` du client. Le jeu peut
 rester ouvert : WoW ne réécrit jamais ce dossier, seul `WTF` l'est en
 quittant, et l'installeur n'y touche pas. Un `/reload` suffit à prendre les
 changements — sauf à la première installation, où il faut fermer et relancer
