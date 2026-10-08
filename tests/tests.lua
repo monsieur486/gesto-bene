@@ -432,6 +432,25 @@ Test("deux joueurs de meme classe peuvent diverger", function()
   FauxAPI.Reinitialiser()
 end)
 
+-- Le choix par défaut reste celui de la classe, et un ou plusieurs joueurs
+-- en dérogent chacun pour soi : trois guerriers, deux surcharges différentes,
+-- le troisième garde la classe. Aucune surcharge ne déborde sur un voisin.
+Test("trois joueurs de meme classe gardent chacun leur choix", function()
+  local monde = MondeDeuxGuerriers()
+  monde.unites.party3 = { classe = "WARRIOR", nom = "Brunhild" }
+  ChargerSuivi(monde)
+  GestoBene_Suivi.Surcharger("Gorkk", "Puissance")
+  GestoBene_Suivi.Surcharger("Brunhild", "Sagesse")
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Puissance", "Gorkk")
+  AssertEgal(GestoBene_Suivi.Attendue("party2"), "Rois", "Thoromir garde la classe")
+  AssertEgal(GestoBene_Suivi.Attendue("party3"), "Sagesse", "Brunhild")
+  AssertEgal(GestoBene_Suivi.Attendue("player"), "Sagesse", "le paladin garde la classe")
+  GestoBene_Suivi.Surcharger("Gorkk", nil)
+  AssertEgal(GestoBene_Suivi.Attendue("party1"), "Rois", "Gorkk revient a la classe")
+  AssertEgal(GestoBene_Suivi.Attendue("party3"), "Sagesse", "Brunhild n a pas bouge")
+  FauxAPI.Reinitialiser()
+end)
+
 -- Surcharger(nom, nil) retire la surcharge : la classe reprend la main.
 Test("Surcharger avec nil retire la surcharge", function()
   ChargerSuivi(MondeGroupe())
