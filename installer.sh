@@ -18,6 +18,13 @@ if [[ ! -d "$client/Interface/AddOns" ]]; then
   exit 1
 fi
 
+# On ne pose jamais du code qu'on n'a pas passé aux tests.
+echo "Tests…"
+if ! (cd "$ici/tests" && lua5.1 tests.lua | tail -1); then
+  echo "Tests en échec : rien n'a été posé." >&2
+  exit 1
+fi
+
 premiere_pose=true
 [[ -d "$cible" ]] && premiere_pose=false
 
