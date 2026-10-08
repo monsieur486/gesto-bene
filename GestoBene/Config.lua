@@ -24,7 +24,7 @@ GestoBene_Config = {
     DRUID       = "Rois",
   },
 
-  -- Le sceau suivi par le carré placé sous le tien.
+  -- Le sceau suivi par le carré placé à gauche du cadenas.
   -- Valeurs admises : "Piete", "Sagesse", "Lumiere", "Justice",
   -- "Commandement", "Vengeance", "Corruption"
   -- Le clic droit sur ce carré passe au sceau suivant parmi ceux que tu

@@ -4,8 +4,8 @@
 -- au-dessus de chaque carré, une bascule qui fait défiler les bénédictions
 -- que ce joueur sait lancer. Un simple texte s'y ajoute aussi, à droite : le
 -- compteur de Symboles des rois. Aucun d'eux ne lance de sort ; seuls les
--- cinq carrés sont protégés, ainsi que le carré de sceau sous celui du
--- joueur, qui lance le sceau choisi.
+-- cinq carrés sont protégés, ainsi que le carré de sceau à gauche du
+-- cadenas, qui lance le sceau choisi.
 
 GestoBene_Cadre = GestoBene_Cadre or {}
 local Cadre = GestoBene_Cadre
@@ -48,9 +48,10 @@ local TAILLE_COMPTEUR_REACTIF = 20
 -- l'autre côté.
 local ECART_COMPTEUR_REACTIF = 4
 
--- Distance entre le bas du carré du joueur et le carré de sceau : le nom du
--- joueur occupe cet espace, sous le carré.
-local ECART_SCEAU = 14
+-- Écart entre le carré de sceau et le cadenas, à sa droite : le même
+-- qu'entre deux carrés. Tout tient ainsi sur une seule ligne — sceau,
+-- cadenas, carrés, compteur — au lieu d'un sceau suspendu sous le joueur.
+local ECART_SCEAU = ECART
 
 -- Texte du carré quand la bénédiction manque. Court volontairement : un mot
 -- entier déborde d'un carré de 48 pixels de large, et le fond rouge qui pulse dit déjà
@@ -92,7 +93,7 @@ local constructionEnAttente = false
 -- est licite, contrairement aux cinq carrés.
 local cadenas, boutonsBascule, compteurReactif = nil, {}, nil
 
--- Le carré de sceau, sous celui du joueur. Bouton protégé : clic gauche,
+-- Le carré de sceau, à gauche du cadenas. Bouton protégé : clic gauche,
 -- le sceau choisi ; clic droit, aucune action protégée, seulement le
 -- passage au sceau suivant (voir CreerSceau).
 local sceau = nil
@@ -290,23 +291,23 @@ local function CreerCompteurReactif()
   return compteur
 end
 
--- Le carré de sceau, sous celui du joueur et son nom. Mêmes dimensions et mêmes
--- deux lignes qu'un carré de bénédiction : l'abréviation en haut, le temps au
--- centre ; une barre d'une seule ligne tassait « SAG 29:12 » dans 48 pixels.
--- Le joueur existe toujours : il est montré une fois pour toutes et suit le
--- cadre parent, sans jamais avoir à se montrer ou se cacher en combat.
+-- Le carré de sceau, à gauche du cadenas, sur la ligne des carrés. Mêmes
+-- dimensions et mêmes deux lignes qu'un carré de bénédiction : l'abréviation
+-- en haut, le temps au centre ; une barre d'une seule ligne tassait
+-- « SAG 29:12 » dans 48 pixels. Le joueur existe toujours : le carré est
+-- montré une fois pour toutes et suit le cadre parent, sans jamais avoir à
+-- se montrer ou se cacher en combat.
 --
 -- Seul « type1 » est posé : le clic droit ne déclenche aucune action
 -- protégée, et PostClick en profite pour faire avancer le choix du sceau.
 -- Ce choix est une donnée ordinaire, licite en combat ; seul le nouveau nom
 -- de sort dans « spell1 » devra attendre, ce que Reprogrammer sait différer.
 local function CreerSceau()
-  local carreJoueur = carres.player
   local bouton = CreateFrame("Button", "GestoBeneSceau", parent,
                              "SecureActionButtonTemplate")
   bouton:SetWidth(GestoBene_Config.largeurCarre)
   bouton:SetHeight(GestoBene_Config.hauteurCarre)
-  bouton:SetPoint("TOP", carreJoueur, "BOTTOM", 0, -ECART_SCEAU)
+  bouton:SetPoint("RIGHT", cadenas, "LEFT", -ECART_SCEAU, 0)
   bouton:RegisterForClicks("AnyUp")
   bouton:SetAttribute("unit", "player")
   bouton:SetAttribute("type1", "spell")
@@ -538,9 +539,9 @@ function Cadre.Construire()
     boutonsBascule[unite] = CreerBoutonBascule(unite, carre)
   end
 
-  sceau = CreerSceau()
-
+  -- Le cadenas d'abord : le carré de sceau s'ancre à sa gauche.
   cadenas = CreerCadenas()
+  sceau = CreerSceau()
   compteurReactif = CreerCompteurReactif()
 
   ActualiserVerrou()
